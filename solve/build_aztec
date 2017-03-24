@@ -1,0 +1,22 @@
+#!/bin/bash
+
+cd Aztec2.1
+# This deletes the old Makefiles
+for mf in {lib,app}/Makefile*; do
+    num=${#mf}
+    (( ntpl = num-9 ));
+    (( nstr = num-1 ));
+    if [[ ${mf:$ntpl:9} != '.template' && ${mf:$nstr:1} != '*' ]]; then
+        rm $mf
+    fi
+done
+
+# Now we can set the appropriate makefiles and rebuild
+./set_makefiles $1 $2
+cd lib
+make clean
+make
+
+#cd ../app
+#make clean
+#make
