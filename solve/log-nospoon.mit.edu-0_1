@@ -1,0 +1,86 @@
+
+====================================================
+
+My pid is 24828
+
+  ./gps
+  --epsilon=0.0001
+  --odcd_cache_fn_format=/tmp/odcd_cache-%d
+  --odcd_cache_size=-1
+  --mdp_fn=../mcar_100x100.mdp
+  --stp_fn=../mcar_20x20.part
+  --run_type=vi
+  --heat_metric=abs
+  --solver=r
+  --use_voting=1
+  --save_fn=results
+  --verbose=1
+====================================================
+
+GLOBALLY: 400 PARTITIONS, 10000 STATES!
+ LOCALLY: 400 PARTITIONS, 0 STATES!
+  Done initializing partitions.
+Local States        = 0
+Global States       = 10000
+Local Partitions    = 400
+Global Partitions   = 400
+  using voting!
+Epsilon             = 0.000100
+
+
+Using normal value iteration
+Using absolute heat metric
+
+sizeof(world_t)     = 452
+sizeof(part_t)      = 104
+sizeof(state_t)     = 10
+sizeof(trans_t)     = 16
+sizeof(entry_t)     = 12
+
+World init took 0.077820 seconds
+
+Computing cross-partition dependencies...
+Took 0.014478 seconds
+
+Computing intra-partition reorderings...
+Took 0.003116 seconds
+
+Translating matrices...
+Took 0.001904 seconds
+
+Computing partition priorities...
+Took 0.005354 seconds
+
+Coordinating dependencies...
+Max mesg size = 0
+Sending ltfsd done msg to proc 0
+Received ltfsd done msg: ltfsd_done_cnt = 1
+Everyone says they're done; terminating ltfsd
+Took 0.000061 seconds
+
+Creating priority queue heap...
+Took 0.000035 seconds
+
+===================================================
+GO!
+
+Total sweeps: 67
+
+---- Took 0.375411 seconds ----
+---- Number of updates: 670000 ----
+  Washed 67 times
+===================================================
+
+
+       States: 0
+   Partitions: 400
+States / part: 0.000000
+    Iter Time: 0.375411
+   Coord Time: 0.000061
+  Number of messages: 0
+Total message volume: 0
+Average message size: nan
+           RAM: 42052.000000
+            Tc: 0.000000
+            Wc: 67.000000
+     Unvisited: 400 (1.00)

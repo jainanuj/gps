@@ -1,1 +1,10 @@
 *.o
+generate/fixgeom
+generate/g_dap
+generate/g_hotplate
+generate/g_mcar
+generate/g_sap
+generate/g_tap
+solve/.tmp.txt
+solve/gps
+
