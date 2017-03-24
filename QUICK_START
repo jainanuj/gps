@@ -1,0 +1,50 @@
+
+In order to run GPS, you must specify an MDP and a partition file.
+
+-------------------------------------------------------------------------------
+
+Generate a mountain car MDP using a 100x100 discretization:
+
+
+./g_mcar --dd0=100 --dd1=100 --discount_factor=0.6 \
+         --use_variable_timestep \
+         --base_timestep=0.001 > ../mcar_100x100.mdp
+
+-------------------------------------------------------------------------------
+
+Generate a partitioning file using a 20x20 regular gridding:
+
+./gen_d_part.pl 2 100 20 > ../mcar_20x20.part
+
+-------------------------------------------------------------------------------
+
+Run GPS:
+
+./gps --epsilon=0.0001 \
+      --odcd_cache_fn_format=/tmp/odcd_cache-%d \
+      --odcd_cache_size=-1 \
+      --mdp_fn=../mcar_100x100.mdp \
+      --stp_fn=../mcar_20x20.part \
+      --run_type=vi \
+      --heat_metric=abs \
+      --solver=r \
+      --use_voting=1 \
+      --save_fn=results \
+      --verbose=1
+
+(This command is encapsulated as "cmd.sh")
+
+-------------------------------------------------------------------------------
+
+Run with mpi:
+
+/usr/local/mpich-1.2.7p1/bin/mpirun -np 2 -machinefile machinefile cmd.sh
+
+-------------------------------------------------------------------------------
+
+Visualize resulting value function in Matlab:
+
+bob = load('results');  
+bob = sortrows( bob, [1] );
+img = reshape( bob(:,3)', 100, 100 );
+surf( img )
