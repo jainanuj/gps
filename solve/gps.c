@@ -478,7 +478,7 @@ int main( int argc, char *argv[] ) {
 
   /* ------------ initialize the world ------------ */
     printf("Started gps");
-    sleep(10);
+//    sleep(10);
     
   t_start = when();
 
