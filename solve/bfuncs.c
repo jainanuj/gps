@@ -876,6 +876,7 @@ prec_t value_iterate_partition( world_t *w, int l_part ) {
   part_t *pp;
   int i, l_state, state_cnt;
   float max_heat, delta;
+  int numPartitionIters = 0;
 /*   FILE *fp; */
 
   /* make sure that the data is in the odcd cache! */
@@ -885,25 +886,35 @@ prec_t value_iterate_partition( world_t *w, int l_part ) {
   pp = &( w->parts[ l_part ] );
   state_cnt = pp->num_states;
 
-  if ( use_voting == VOTE_YES ) {
+  while(1)
+  {
+    if ( use_voting == VOTE_YES ) {
 
     /* process states in a specific order */
-    for ( i = 0; i < state_cnt; i++ ) {
-      l_state = pp->variable_ordering[ i ];
-      delta = value_update( w, l_part, l_state );
-      max_heat = MAX( fabs( delta ), max_heat );
+        max_heat = 0;
+        for ( i = 0; i < state_cnt; i++ ) {
+            l_state = pp->variable_ordering[ i ];
+            delta = value_update( w, l_part, l_state );
+            max_heat = MAX( fabs( delta ), max_heat );
+        }
+
+    } else {
+
+        for ( l_state = 0; l_state < state_cnt; l_state++ ) {
+            delta = value_update( w, l_part, l_state );
+            max_heat = MAX( fabs( delta ), max_heat );
+        }
+
     }
 
-  } else {
-
-    for ( l_state = 0; l_state < state_cnt; l_state++ ) {
-      delta = value_update( w, l_part, l_state );
-      max_heat = MAX( fabs( delta ), max_heat );
-    }
+      w->parts[ l_part ].washes++;
+      numPartitionIters++;
+      if ((numPartitionIters > MAX_ITERS_PP) || (max_heat < heat_epsilon))
+      {
+          break;
+      }
 
   }
-
-  w->parts[ l_part ].washes++;
 
 #ifdef USE_MPI
   /* inform foreign processors!*/
