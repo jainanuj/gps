@@ -34,7 +34,7 @@
  */
 
 
-#define MAX_ITERS_PP 20
+#define MAX_ITERS_PP 40
 /*
 
 Philosophy / design decision:

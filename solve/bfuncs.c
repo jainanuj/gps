@@ -913,7 +913,7 @@ prec_t value_iterate_partition( world_t *w, int l_part ) {
       {
           //if (numPartitionIters > 1)
             if (numPartitionIters >= 10)
-                if ( verbose ) { wlog( 1, "Partition %d was processed %d number of times. Max Heat is: %.6f \n \n", l_part, numPartitionIters, max_heat ); }
+                if ( verbose ) { wlog( 1, "Partition %d was processed %d number of times. Max Heat is: %.6f \n", l_part, numPartitionIters, max_heat ); }
 
               
           break;
