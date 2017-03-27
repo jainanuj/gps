@@ -23,6 +23,7 @@ int pick_part_and_wash_it( world_t *w ) {
 /*   fprintf( stderr, "WORKING IN PART %d\n", l_part_num ); */
 /*   fprintf( stderr, "-------------------\n" ); */
 
+    //This is different from regular vi. Over there, partition is washed only once. - ANUJ
   do {
     maxheat = value_iterate_partition( w, l_part_num );
 /*     fprintf( stderr, "%.4f\n", maxheat ); */
