@@ -7,4 +7,8 @@ generate/g_sap
 generate/g_tap
 solve/.tmp.txt
 solve/gps
-
+*.mdp
+*.part
+generateGrid/createGrid
+results*
+log-*
