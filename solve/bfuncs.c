@@ -875,7 +875,7 @@ prec_t value_sum( world_t *w ) {
 prec_t value_iterate_partition( world_t *w, int l_part ) {
   part_t *pp;
   int i, l_state, state_cnt;
-  float max_heat, delta;
+  float max_heat, delta, part_internal_heat;
   int numPartitionIters = 0;
 /*   FILE *fp; */
 
@@ -888,14 +888,21 @@ prec_t value_iterate_partition( world_t *w, int l_part ) {
 
   while(1)
   {
+    //Let maxheat be the maximum heat that was there to begin with. This is not changed as we go through
+    //multiple iterations of the partition. Simply because, this signifies that something was changed so we should
+    //continue with the value iterations.
+    //max_heat = 0;
+    //part_internal_heat initialized to 0 and keeps on reducing with every iteration.
+    //It signifies that we are making progress within the partition.
+    part_internal_heat = 0;
     if ( use_voting == VOTE_YES ) {
 
     /* process states in a specific order */
-        max_heat = 0;
         for ( i = 0; i < state_cnt; i++ ) {
             l_state = pp->variable_ordering[ i ];
             delta = value_update( w, l_part, l_state );
             max_heat = MAX( fabs( delta ), max_heat );
+            part_internal_heat = MAX( fabs( delta ), part_internal_heat );
         }
 
     } else {
@@ -903,17 +910,18 @@ prec_t value_iterate_partition( world_t *w, int l_part ) {
         for ( l_state = 0; l_state < state_cnt; l_state++ ) {
             delta = value_update( w, l_part, l_state );
             max_heat = MAX( fabs( delta ), max_heat );
+            part_internal_heat = MAX( fabs( delta ), part_internal_heat );
         }
 
     }
 
       w->parts[ l_part ].washes++;
       numPartitionIters++;
-      if ((numPartitionIters > MAX_ITERS_PP) || (max_heat < heat_epsilon))
+      if (part_internal_heat < heat_epsilon) //excluding (numPartitionIters > MAX_ITERS_PP) ||
       {
           //if (numPartitionIters > 1)
-            if (numPartitionIters >= 10)
-                if ( verbose ) { wlog( 1, "Partition %d was processed %d number of times. Max Heat is: %.6f \n", l_part, numPartitionIters, max_heat ); }
+            if (numPartitionIters >= 20)
+                if ( verbose ) { wlog( 1, "Partition %d was processed %d number of times. Part Internal Heat is: %.6f. Max heat to begin with is: %.6f \n", l_part, numPartitionIters, part_internal_heat, max_heat ); }
 
               
           break;
