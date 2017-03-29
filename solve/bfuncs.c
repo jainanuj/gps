@@ -920,8 +920,8 @@ prec_t value_iterate_partition( world_t *w, int l_part ) {
       if (part_internal_heat < heat_epsilon) //excluding (numPartitionIters > MAX_ITERS_PP) ||
       {
           //if (numPartitionIters > 1)
-            if (numPartitionIters >= 20)
-                if ( verbose ) { wlog( 1, "Partition %d was processed %d number of times. Part Internal Heat is: %.6f. Max heat to begin with is: %.6f \n", l_part, numPartitionIters, part_internal_heat, max_heat ); }
+            //if (numPartitionIters >= 20)
+              //  if ( verbose ) { wlog( 1, "Partition %d was processed %d number of times. Part Internal Heat is: %.6f. Max heat to begin with is: %.6f \n", l_part, numPartitionIters, part_internal_heat, max_heat ); }
 
               
           break;
