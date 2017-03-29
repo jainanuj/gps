@@ -899,8 +899,8 @@ prec_t value_iterate_partition( world_t *w, int l_part ) {
 
     /* process states in a specific order */
         for ( i = 0; i < state_cnt; i++ ) {
-            l_state = pp->variable_ordering[ i ];
-            delta = value_update( w, l_part, l_state );
+            //l_state = pp->variable_ordering[ i ];
+            delta = value_update( w, l_part, i );
             max_heat = MAX( fabs( delta ), max_heat );
             part_internal_heat = MAX( fabs( delta ), part_internal_heat );
         }

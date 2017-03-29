@@ -470,10 +470,10 @@ void calc_swap_time( int save, double iter_time ) {
  */
 
 int main( int argc, char *argv[] ) {
-  int i, value_iterate_flag;
+  int i, value_iterate_flag, totalWashes = 0;
   world_t *w;
   double t_start, t_end;
-  double iter_time, coord_time, reorder_time;
+  double iter_time, coord_time, reorder_time = 0;
 
 
   /* ------------ initialize the world ------------ */
@@ -542,7 +542,7 @@ int main( int argc, char *argv[] ) {
 
   /* ------------ intra-partition reorder ------------ */
 
-  if ( use_voting == VOTE_YES ) {
+/*  if ( use_voting == VOTE_YES ) {
 
     if ( verbose ) { wlog( 1, "Computing intra-partition reorderings...\n" ); }
     t_start = when();
@@ -555,7 +555,7 @@ int main( int argc, char *argv[] ) {
     reorder_time = 0;
   }
 
-
+*/
   /* ------------ Translate global indices to local ones ------------ */
 
   if ( verbose ) { wlog( 1, "Translating matrices...\n" ); }
@@ -566,14 +566,14 @@ int main( int argc, char *argv[] ) {
 
 
   /* ------------ compute partition priorities ------------ */
-
+/*
   if ( verbose ) { wlog( 1, "Computing partition priorities...\n" ); }
   t_start = when();
   compute_initial_partition_priorities( w );
   t_end = when();
   if ( verbose ) { wlog( 1, "Took %.6f seconds\n\n", t_end - t_start ); }
 
-
+*/
   /* ------------ tell foreign processors about dependencies ------------ */
 
 #ifdef USE_MPI
@@ -593,7 +593,7 @@ int main( int argc, char *argv[] ) {
 
   if ( verbose ) { wlog( 1, "Creating priority queue heap...\n" ); }
   t_start = when();
-  init_part_heap( w );
+//  init_part_heap( w );
   t_end = when();
   if ( verbose ) { wlog( 1, "Took %.6f seconds\n\n", t_end - t_start ); }
 
@@ -689,6 +689,7 @@ int main( int argc, char *argv[] ) {
 	  iter_time, reorder_time, iter_time + reorder_time, 
 	  w->vi_sweeps, w->parts_processed, w->num_value_updates );
 
+
     /* the second number is the recompute ratio */
 /*     wlog( 1, "%s %.2f %.2f\n", echo_string, */
 /* 	  100 * odcd_hit_ratio( &(w->odcd_cache) ),  */
@@ -703,9 +704,13 @@ int main( int argc, char *argv[] ) {
 
   }
 
-  if ( verbose ) {
+    for (i = 0; i < w->num_local_parts; i++)
+    {
+        totalWashes += w->parts[i].washes;
+    }
+    if ( verbose ) {
     if ( value_iterate_flag ) {
-      wlog( 1, "  Washed %d times\n", w->vi_sweeps );
+      wlog( 1, "  Sweeps %d times. Total washed: %d times\n", w->vi_sweeps, totalWashes );
     }
     wlog( 1, "===================================================\n" );
     wlog( 1, "\n\n");
