@@ -91,3 +91,9 @@ int queue_pop(queue *q, int *result )
 
     return 1;
 }
+
+
+int queue_has_items(queue *q)
+{
+    return q->numitems;
+}

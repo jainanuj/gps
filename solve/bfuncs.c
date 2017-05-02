@@ -973,7 +973,7 @@ prec_t value_iterate( world_t *w ) {
 
   maxheat = 0;
     
-    while (1)
+    while (part_available_to_process(w))
     {
         l_part = get_next_part(w);
         tmp = value_iterate_partition( w, l_part );
@@ -981,11 +981,6 @@ prec_t value_iterate( world_t *w ) {
         {
             add_partition_deps_for_eval(w, l_part);
             maxheat = tmp;
-        }
-        else
-        {
-            maxheat = 0;
-            break;
         }
     }
     

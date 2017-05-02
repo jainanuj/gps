@@ -45,6 +45,10 @@ int pick_part_and_wash_it( world_t *w ) {
   return 1;
 }
 
+int part_available_to_process(world_t *w)
+{
+    return queue_has_items(w->part_queue);
+}
 
 int get_next_part(world_t *w)
 {
