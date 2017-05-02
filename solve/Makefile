@@ -59,7 +59,7 @@ all: gps
 #$(AZTEC)/lib/libaztec.a:
 #	./build_aztec $(AZ_PLATFORM) $(AZ_IMPL)
 
-C_OBJS=bfuncs.o intheap.o med_hash.o sanity.o flags.o opts.o part_stuff.o logger.o odcd.o small-matvec.o stok.o
+C_OBJS=bfuncs.o intheap.o med_hash.o sanity.o flags.o opts.o part_stuff.o logger.o odcd.o small-matvec.o stok.o intqueue.o
 
 GPS_OBJS=gps.o $(C_OBJS)
 

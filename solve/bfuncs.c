@@ -112,6 +112,7 @@ void load_mdp( world_t *w, char *fn ) {
   int sprime;
   entry_t *et;
   trans_t *tt;
+  prec_t *external_deps;
   state_t *st;
   prec_t total_prob, prob;
 #ifdef USE_MPI
@@ -204,9 +205,19 @@ void load_mdp( world_t *w, char *fn ) {
       wlog( 1 , "Error allocating transition!\n" );
       exit( 0 );
     }
+      
+    //allocate external vals cache for each action.
+    //This is aggregate impact of all external states corresponding to this action.
+    //It remains constant for this action after first iteration through partition while evaluating the partition.
+    external_deps = (prec_t *)malloc(sizeof(prec_t) * nacts);
+    if ( external_deps == NULL ) {
+      wlog( 1 , "Error allocating external_deps cache!\n" );
+      exit( 0 );
+    }
 
     /* set up this state's information */
     st->tps = tt;
+    st->external_dep_vals = external_deps;
     st->num_actions = nacts;
     st->global_state_index = g_state;
 
@@ -388,12 +399,18 @@ int init_world( world_t *w, char *fn ) {
   allocate_states_in_parts( w );
 
   /* Create our local priority queue. This is done with a heap. */
-  w->part_heap = heap_create( w->num_local_parts, part_cmp_func,
+/*  w->part_heap = heap_create( w->num_local_parts, part_cmp_func,
 			      part_swap_func, part_add_func, w );
   if ( w->part_heap == NULL ) {
     wlog( 1, "Error creating heap!\n" );
     exit( 0 );
   }
+  */
+  w->part_queue = queue_create(w->num_local_parts);
+  if ( w->part_queue == NULL ) {
+        wlog( 1, "Error creating queue!\n" );
+        exit( 0 );
+    }
 
   /* we need to initialize the foreign_state_val_hash */
 #ifdef USE_MPI
@@ -540,6 +557,18 @@ void init_part_heap( world_t *w ) {
     heap_add( w->part_heap, l_part_num );
   }
 }
+
+
+void init_part_queue( world_t *w )
+{
+    int l_part_num;
+    
+    for ( l_part_num=0; l_part_num<w->num_local_parts; l_part_num++ )
+    {
+        queue_add( w->part_queue, l_part_num );
+    }
+}
+
 
 /*
  * ----------------------------------------------------------------------------
@@ -872,9 +901,10 @@ prec_t value_sum( world_t *w ) {
 }
 
 /* washes over the partition once */ // - This does it just once - Anuj
+//Now it does it till the partiton is completely solved.
 prec_t value_iterate_partition( world_t *w, int l_part ) {
   part_t *pp;
-  int i, l_state, state_cnt;
+  int l_state, state_cnt;
   float max_heat, delta, part_internal_heat;
   int numPartitionIters = 0;
 /*   FILE *fp; */
@@ -886,35 +916,26 @@ prec_t value_iterate_partition( world_t *w, int l_part ) {
   pp = &( w->parts[ l_part ] );
   state_cnt = pp->num_states;
 
-  while(1)
+//First iteration.
+  for ( l_state = 0; l_state < state_cnt; l_state++ )
   {
-    //Let maxheat be the maximum heat that was there to begin with. This is not changed as we go through
-    //multiple iterations of the partition. Simply because, this signifies that something was changed so we should
-    //continue with the value iterations.
-    //max_heat = 0;
-    //part_internal_heat initialized to 0 and keeps on reducing with every iteration.
-    //It signifies that we are making progress within the partition.
-    part_internal_heat = 0;
-    if ( use_voting == VOTE_YES ) {
-
-    /* process states in a specific order */
-        for ( i = 0; i < state_cnt; i++ ) {
-            //l_state = pp->variable_ordering[ i ];
-            delta = value_update( w, l_part, i );
-            max_heat = MAX( fabs( delta ), max_heat );
-            part_internal_heat = MAX( fabs( delta ), part_internal_heat );
-        }
-
-    } else {
-
-        for ( l_state = 0; l_state < state_cnt; l_state++ ) {
-            delta = value_update( w, l_part, l_state );
-            max_heat = MAX( fabs( delta ), max_heat );
-            part_internal_heat = MAX( fabs( delta ), part_internal_heat );
-        }
-
-    }
-
+      delta = value_update( w, l_part, l_state );
+      max_heat = MAX( fabs( delta ), max_heat );
+  }
+ 
+  //This is equivalent to while(true) as we don't change max_heat in the while loop.
+  //If max_heat == 0 we don't need to enter this loop as partition is already cold.
+  while(max_heat > 0)
+  {
+      //part_internal_heat initialized to 0 at beginning of each iteration.
+      //It attains value of max heat in that iteration and keeps on reducing with every iteration.
+      //It signifies that we are making progress within the partition.
+      part_internal_heat = 0;
+      for ( l_state = 0; l_state < state_cnt; l_state++ )
+      {
+          delta = value_update_iters( w, l_part, l_state );
+          part_internal_heat = MAX( fabs( delta ), part_internal_heat );
+      }
       w->parts[ l_part ].washes++;
       numPartitionIters++;
       if (part_internal_heat < heat_epsilon) //excluding (numPartitionIters > MAX_ITERS_PP) ||
@@ -951,8 +972,25 @@ prec_t value_iterate( world_t *w ) {
   prec_t maxheat, tmp;
 
   maxheat = 0;
+    
+    while (1)
+    {
+        l_part = get_next_part(w);
+        tmp = value_iterate_partition( w, l_part );
+        if (tmp > heat_epsilon)
+        {
+            add_partition_deps_for_eval(w, l_part);
+            maxheat = tmp;
+        }
+        else
+        {
+            maxheat = 0;
+            break;
+        }
+    }
+    
 
-  for ( l_part = 0; l_part < w->num_local_parts; l_part++ ) {
+/*  for ( l_part = 0; l_part < w->num_local_parts; l_part++ ) {
 
     tmp = value_iterate_partition( w, l_part );
 
@@ -960,7 +998,7 @@ prec_t value_iterate( world_t *w ) {
       maxheat = tmp;
     }
   }
-
+*/
   return maxheat;
 }
 
@@ -995,12 +1033,54 @@ prec_t value_update( world_t *w, int l_part, int l_state ) {
     exit( 0 );
   }
 
-  w->parts[ l_part ].values->elts[ l_state ] = max_value;
+  w->parts[ l_part ].values->elts[ l_state ] = max_value;       //Update the V(s,a) for this state.
 
   w->num_value_updates++;
 
   return max_value - cval;
 }
+
+
+
+//ANUJ - This is called in all iterations after the 1st one.
+//Only difference from the function called in first iteration is that it calls reward_or_values_iters.
+//This version of the reward_or_values, does not compute the values of external dependencies, just uses the cached value.
+prec_t value_update_iters( world_t *w, int l_part, int l_state ) {
+    int action, max_action, nacts;
+    prec_t tmp, max_value, cval;
+    
+    cval = w->parts[ l_part ].values->elts[ l_state ];
+    
+    max_action = 0;
+    max_value = reward_or_value_iters( w, l_part, l_state, 0 );     //ANUJ - Calling the iters version.
+    
+    /* remember that there is an action bias! */
+    nacts = w->parts[ l_part ].states[ l_state ].num_actions;
+    for (action=1; action<nacts; action++) {
+        tmp = reward_or_value_iters( w, l_part, l_state, action );
+        if ( tmp > max_value ) {
+            max_value = tmp;
+            max_action = action;
+        }
+    }
+    
+    /*   fprintf( stderr, "  %d-%d\n", l_part, l_state ); */
+    /*   fprintf( stderr, "  %.5f-%.5f=%.5f\n", max_value, cval, max_value-cval ); */
+    
+    if ( max_value < 0 ) {
+        fprintf( stderr, "WARGH!\n" );
+        exit( 0 );
+    }
+    
+    w->parts[ l_part ].values->elts[ l_state ] = max_value;       //Update the V(s,a) for this state.
+    
+    w->num_value_updates++;
+    
+    return max_value - cval;
+}
+
+
+
 
 /*
  * ----------------------------------------------------------------------------
@@ -1159,7 +1239,10 @@ prec_t reward_or_value( world_t *w, int l_part, int l_state, int a ) {
 
   /*#error This needs to grok the global vs. local state distinction.  Wow.  How could it possibly not do that??? */
 
-  tmp = get_remainder( w, l_part, l_state, a );
+  tmp = get_remainder( w, l_part, l_state, a );     //Getting external dependencies.
+  
+  st->external_dep_vals[a] = tmp;      //Cache the values of the external deps in the state.
+                                    //This won't need to be computed in any of the remaining iterations of this partition.
 
 /*   if ( l_part == 0 && l_state == 0 ) { */
 /*     fprintf( stderr, "  %d-%d (%d) %d: %.5f + %.5f + ", */
@@ -1176,6 +1259,45 @@ prec_t reward_or_value( world_t *w, int l_part, int l_state, int a ) {
 /*   } */
   return value;
 }
+
+
+
+//ANUJ - using this function for the iterations of the partition after the 1st.
+//This doesn't compute the external dependencies but just uses the cached value from the 1st iteration.
+prec_t reward_or_value_iters( world_t *w, int l_part, int l_state, int a ) {
+    prec_t value;//, tmp;
+    state_t *st;
+    
+    st = &( w->parts[ l_part ].states[ l_state ] );
+    
+    /* compute the internal values */
+    value = entries_vec_mult( st->tps[ a ].entries,
+                             st->tps[ a ].int_deps,
+                             w->parts[ l_part ].values );
+    
+    /* add in external deps! */
+    
+    /*#error This needs to grok the global vs. local state distinction.  Wow.  How could it possibly not do that??? */
+    
+    //tmp = get_remainder( w, l_part, l_state, a );     //Getting external dependencies.
+    //st->external_dep_vals = tmp;      //Cache the values of the external deps in the state.
+    //This won't need to be computed in any of the remaining iterations of this partition.
+    /*   if ( l_part == 0 && l_state == 0 ) { */
+    /*     fprintf( stderr, "  %d-%d (%d) %d: %.5f + %.5f + ", */
+    /* 	     l_part, l_state, st->global_state_index, a, value, tmp ); */
+    /*   } */
+    
+    value += st->external_dep_vals[a];
+    
+    /* we have to do this because we negated the A matrix! */
+    value = -value + st->tps[ a ].reward;
+    
+    /*   if ( l_part == 0 && l_state == 0 ) { */
+    /*     fprintf( stderr, "%.5f = %.5f\n", st->tps[a].reward, value ); */
+    /*   } */
+    return value;
+}
+
 
 /*
  * ----------------------------------------------------------------------------
@@ -1236,7 +1358,7 @@ void add_dep( world_t *w,
        g_end_state (which resides in g_end_part).
        so, g_end_part needs to have a dependent which is l_start_part. */
 
-    med_hash_set_add( w->parts[ l_end_part ].my_local_dependents,
+  med_hash_set_add( w->parts[ l_end_part ].my_local_dependents,
 		      g_start_part, l_start_state );
 
 #ifdef USE_MPI
@@ -1583,8 +1705,8 @@ void translate_to_local_matrix( world_t *w, int l_part ) {
       ndeps = st->tps[a].int_deps;
 
       for ( i=0; i<ndeps; i++ ) {
-	tmp = gsi_to_lsi( w, st->tps[a].entries[i].col );
-	st->tps[a].entries[i].col = tmp;
+       tmp = gsi_to_lsi( w, st->tps[a].entries[i].col );
+       st->tps[a].entries[i].col = tmp;
       }
 
     }

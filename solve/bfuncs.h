@@ -96,6 +96,8 @@ int part_cmp_func( int lp_a, int lp_b, void *vw );
 void part_swap_func( int lp_a, int lp_b, void *vw );
 void part_add_func( int lp_obj, int pos, void *vw );
 void init_part_heap( world_t *w );
+void init_part_queue( world_t *w );
+
 
 void compute_cross_partition_deps( world_t *w );
 void reorder_states_within_partitions( world_t *w );
@@ -105,6 +107,7 @@ prec_t value_iterate_partition( world_t *w, int l_part );
 prec_t value_iterate( world_t *w );
 
 prec_t value_update( world_t *w, int l_part, int l_state );
+prec_t value_update_iters( world_t *w, int l_part, int l_state );
 
 int get_policy( world_t *w, int l_part, int l_state );
 
@@ -120,6 +123,8 @@ prec_t max_val_heat( world_t *w, int l_part, int l_state );
 prec_t std_diff_heat( world_t *w, int l_part, int l_state );
 
 prec_t reward_or_value( world_t *w, int l_part, int l_state, int action );
+prec_t reward_or_value_iters( world_t *w, int l_part, int l_state, int action );
+
 
 int iterate_over_parts_seq( world_t *w, int *local_part, int *global_part );
 

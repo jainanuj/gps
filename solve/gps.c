@@ -516,6 +516,7 @@ int main( int argc, char *argv[] ) {
     wlog( 1, "====================================================\n\n" );
   }
 
+    //Read up the MDP File
   if ( !init_world( w, mdp_fn ) ) {
     wlog( 1, "Error initializing world!\n");
     exit( 0 );
@@ -594,6 +595,7 @@ int main( int argc, char *argv[] ) {
   if ( verbose ) { wlog( 1, "Creating priority queue heap...\n" ); }
   t_start = when();
 //  init_part_heap( w );
+    init_part_queue( w );     //Using the queue for regular VI.
   t_end = when();
   if ( verbose ) { wlog( 1, "Took %.6f seconds\n\n", t_end - t_start ); }
 

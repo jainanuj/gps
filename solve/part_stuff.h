@@ -24,4 +24,7 @@ int pick_partition( world_t *w );
 
 void part_check_in( world_t *w, int l_part_num );
 
+int get_next_part(world_t *w);
+void add_partition_deps_for_eval(world_t *w, int l_part_changed);
+
 #endif // defined _PART_STUFF_H

@@ -5,6 +5,7 @@
 #include "med_hash.h"
 #include "odcd.h"
 #include "intheap.h"
+#include "intqueue.h"
 #include "small-matvec.h"
 
 #ifdef USE_MPI
@@ -42,6 +43,7 @@ typedef struct state {
   int global_state_index;  /* to map l_state_t to g_state_t */
   unsigned char policy;
   unsigned char num_actions;
+  prec_t *external_dep_vals;
 } state_t;
 
 typedef struct {
@@ -152,6 +154,8 @@ typedef struct world_t {
   part_t *parts;
 
   heap *part_heap;
+  queue *part_queue;
+    
   int cur_part_sorting;
   int num_value_updates;
 

@@ -45,6 +45,34 @@ int pick_part_and_wash_it( world_t *w ) {
   return 1;
 }
 
+
+int get_next_part(world_t *w)
+{
+    int next_partition;
+    queue_pop(w->part_queue, &next_partition);
+    return next_partition;
+}
+
+void add_partition_deps_for_eval(world_t *w, int l_part_changed)
+{
+    int g_part_changed, g_start_part, l_start_part;
+    med_hash_t *dep_part_hash;
+    int index1;
+    val_t *v;
+    
+    g_part_changed = lpi_to_gpi( w, l_part_changed );
+    
+    dep_part_hash = w->parts[ l_part_changed ].my_local_dependents;
+    index1 = 0;
+    while ( med_hash_iterate( dep_part_hash, &index1, &g_start_part, &v ) )
+    {
+        l_start_part = gpi_to_lpi( w, g_start_part );
+        queue_add(w->part_queue, l_start_part);
+    }
+    
+}
+
+
 /*
  * ----------------------------------------------------------------------------
  */
