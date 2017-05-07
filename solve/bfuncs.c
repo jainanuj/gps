@@ -966,7 +966,7 @@ prec_t value_iterate_partition( world_t *w, int l_part ) {
   return max_heat;
 }
 
-/* washes over all of the partitions once */
+/* washes over all of the partitions */
 prec_t value_iterate( world_t *w ) {
   int l_part;
   prec_t maxheat, tmp;
@@ -983,7 +983,6 @@ prec_t value_iterate( world_t *w ) {
             maxheat = tmp;
         }
     }
-    
 
 /*  for ( l_part = 0; l_part < w->num_local_parts; l_part++ ) {
 

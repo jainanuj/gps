@@ -264,21 +264,16 @@ void solve_using_regular_vi( world_t *w, int type ) {
   w->vi_sweeps = 0;
   w->parts_processed = 0;
 
-  while ( 1 ) {
-    heat = value_iterate( w );
-    (w->vi_sweeps)++;
-    (w->parts_processed) += w->num_local_parts;
+  heat = value_iterate( w );
+  (w->vi_sweeps)++;
+  (w->parts_processed) += w->num_local_parts;
 
 /*     if ( verbose ) { */
 /*       wlog( 1, "%.5f\n", heat ); */
 /*     } */
 
-    check_movie( w );
+  check_movie( w );
 
-    if ( heat < heat_epsilon ) {
-      break;
-    }
-  }
 
   if ( verbose ) {
     wlog( 1, "Total sweeps: %d\n\n", w->vi_sweeps );
@@ -472,7 +467,7 @@ void calc_swap_time( int save, double iter_time ) {
 int main( int argc, char *argv[] ) {
   int i, value_iterate_flag, totalWashes = 0;
   world_t *w;
-  double t_start, t_end;
+    double t_start, t_end, global_start, global_end;
   double iter_time, coord_time, reorder_time = 0;
 
 
@@ -531,7 +526,7 @@ int main( int argc, char *argv[] ) {
     wlog( 1, "World init took %.6f seconds\n\n", t_end - t_start );
   }
 
-
+    global_start = when();
   /* ------------ compute deps ------------ */
 
   if ( verbose ) { wlog( 1, "Computing cross-partition dependencies...\n" ); }
@@ -761,6 +756,8 @@ int main( int argc, char *argv[] ) {
   }
 
   odcd_cache_destroy( &( w->odcd_cache ) );
+    global_end = when();
+    if ( verbose ) { wlog( 1, "Overal time taken - Took %.6f seconds\n\n", global_end - global_start ); }
 
 #ifdef USE_MPI
   MPI_Finalize();
