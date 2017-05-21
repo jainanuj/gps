@@ -133,6 +133,10 @@ void add_dep( world_t *w,
 	      int g_start_part, int l_start_part,
 	      int g_end_state, int g_end_part );
 
+void add_part_ext_dep_states( world_t *w,
+                             int g_start_part, int l_start_part,
+                             int l_start_state, int l_end_state, int g_end_part, double **arrayValptrs, int indexVal );
+
 
 void switch_to_policy_normal( world_t *w, int l_part, int l_state,
 			      int new_pol );

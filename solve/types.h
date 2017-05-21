@@ -44,6 +44,7 @@ typedef struct state {
   unsigned char policy;
   unsigned char num_actions;
   prec_t *external_dep_vals;
+  double ***external_state_vals;
 } state_t;
 
 typedef struct {
@@ -97,11 +98,12 @@ typedef struct part_t {
      we don't distinguish between local and foreign here.
      this is just a map from integers (which are partition numbers)
      to prec_ts (which are the heats). */
-  med_hash_t *heat_links;
+//  med_hash_t *heat_links;
 
   /* this hash collects all of the partitions (LOCAL ONLY) that depend
      on this partition.  this hash maps partition numbers to hashes. */
   med_hash_t *my_local_dependents;
+  med_hash_t *my_ext_parts_states;
 
   /* for visualization stuff */
   char marked;
@@ -158,6 +160,7 @@ typedef struct world_t {
     
   int cur_part_sorting;
   int num_value_updates;
+  int num_value_updates_iters;      //Counter for all cached updates.
 
   /* this is the number of partitions that we've processed. */
   int parts_processed;
@@ -183,6 +186,8 @@ typedef struct world_t {
   int kss_size;  /* the gmres restart parameter */
   int max_iters;
   prec_t tol;
+//  double reward_or_value_updatetime;
+
 
 #ifdef USE_AZTEC
     int az_proc_config[AZ_PROC_SIZE];
@@ -231,7 +236,7 @@ typedef struct world_t {
   int max_recv_size;
 
   mpi_req_stuff *mpi_reqs;
-
+    
 #endif /* def USE_MPI */
 
 } world_t;

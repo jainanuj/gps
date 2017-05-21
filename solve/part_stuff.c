@@ -113,8 +113,8 @@ void update_partition_potentials( world_t *w, int l_part_changed ) {
 /*     wlog( 1, "  Part %d depends on me\n", l_start_part ); */
 
     /* Grab a pointer to the  g_start_part -> g_part_changed heatlink */
-    med_hash_get_floatp( w->parts[ l_start_part ].heat_links,
-			 g_part_changed, &part_heat );
+//    med_hash_get_floatp( w->parts[ l_start_part ].heat_links,
+//			 g_part_changed, &part_heat );
 
     /* Reset the heat link from g_start_part to g_part_changed */
     *part_heat = 0;
@@ -170,10 +170,10 @@ void clear_partition_heat( world_t *w, int l_part_num ) {
   /* All of my states that depend on other partitions
      have a heat of zero.  Each heat link is therefore zero as well. */
   index = 0;
-  m = w->parts[ l_part_num ].heat_links;
-  while ( med_hash_iterate_float( m, &index, &key, &val ) ) {
-    *val = 0;
-  }
+//  m = w->parts[ l_part_num ].heat_links;
+//  while ( med_hash_iterate_float( m, &index, &key, &val ) ) {
+//    *val = 0;
+//  }
 }
 
 /*
@@ -193,10 +193,10 @@ void compute_part_heat( world_t *w, int l_part_num ) {
      iterate over all of my heat links, testing the heat. */
   max_heat = 0;
   index = 0;
-  m = w->parts[ l_part_num ].heat_links;
-  while ( med_hash_iterate_float( m, &index, &key, &tmpf ) ) {
-    max_heat = MAX( max_heat, *tmpf );
-  }
+//  m = w->parts[ l_part_num ].heat_links;
+//  while ( med_hash_iterate_float( m, &index, &key, &tmpf ) ) {
+//    max_heat = MAX( max_heat, *tmpf );
+//  }
 
   if ( max_heat == w->parts[ l_part_num ].heat ) {
     return;

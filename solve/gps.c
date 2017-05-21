@@ -536,22 +536,6 @@ int main( int argc, char *argv[] ) {
   if ( verbose ) { wlog( 1, "Took %.6f seconds\n\n", t_end - t_start ); }
 
 
-  /* ------------ intra-partition reorder ------------ */
-
-/*  if ( use_voting == VOTE_YES ) {
-
-    if ( verbose ) { wlog( 1, "Computing intra-partition reorderings...\n" ); }
-    t_start = when();
-    reorder_states_within_partitions( w );
-    t_end = when();
-    reorder_time = t_end - t_start;
-    if ( verbose ) { wlog( 1, "Took %.6f seconds\n\n", reorder_time ); }
-
-  } else {
-    reorder_time = 0;
-  }
-
-*/
   /* ------------ Translate global indices to local ones ------------ */
 
   if ( verbose ) { wlog( 1, "Translating matrices...\n" ); }
@@ -563,12 +547,7 @@ int main( int argc, char *argv[] ) {
 
   /* ------------ compute partition priorities ------------ */
 /*
-  if ( verbose ) { wlog( 1, "Computing partition priorities...\n" ); }
-  t_start = when();
-  compute_initial_partition_priorities( w );
-  t_end = when();
-  if ( verbose ) { wlog( 1, "Took %.6f seconds\n\n", t_end - t_start ); }
-
+Deleted.
 */
   /* ------------ tell foreign processors about dependencies ------------ */
 
@@ -587,7 +566,7 @@ int main( int argc, char *argv[] ) {
 
   /* ------------ allocate and initialize the partition data structures */
 
-  if ( verbose ) { wlog( 1, "Creating priority queue heap...\n" ); }
+  if ( verbose ) { wlog( 1, "Creating queue ...\n" ); }
   t_start = when();
 //  init_part_heap( w );
     init_part_queue( w );     //Using the queue for regular VI.
@@ -597,9 +576,9 @@ int main( int argc, char *argv[] ) {
 
   /* ------------ other checks ------------ */
 
-  if ( do_sanity_checks ) {
-    sanity_checks( w );
-  }
+//  if ( do_sanity_checks ) {
+//    sanity_checks( w );
+//  }
 
   /* ------------ other inits ------------ */
 
@@ -684,7 +663,7 @@ int main( int argc, char *argv[] ) {
     wlog( 1, "%-10s %-10.6f %-10.6f %-10.6f %-9d %-9d %-9d\n",
 	  echo_string,
 	  iter_time, reorder_time, iter_time + reorder_time, 
-	  w->vi_sweeps, w->parts_processed, w->num_value_updates );
+	  w->vi_sweeps, w->parts_processed, w->num_value_updates + w->num_value_updates_iters );
 
 
     /* the second number is the recompute ratio */
@@ -697,7 +676,9 @@ int main( int argc, char *argv[] ) {
   } else {
     wlog( 1, "---- Took %.6f seconds ----\n", iter_time );
     wlog( 1, "---- Number of updates: %d ----\n",
-	    w->num_value_updates );
+	    w->num_value_updates + w->num_value_updates_iters);
+    wlog( 1, "---- Number of Iter updates: %d ----\n",
+        w->num_value_updates_iters);
 
   }
 
@@ -756,8 +737,14 @@ int main( int argc, char *argv[] ) {
   }
 
   odcd_cache_destroy( &( w->odcd_cache ) );
+    if ( verbose ) { wlog( 1, "Queue Add + Pop time taken - Took %.6f seconds\n\n", w->part_queue->add_time +  w->part_queue->pop_time); }
+    
+//    if ( verbose ) { wlog( 1, "Reward_value updates - Took %.6f seconds\n\n", w->reward_or_value_updatetime); }
+
+    //if ( verbose ) { wlog( 1, "Queue Pop time taken - Took %.6f seconds\n\n", w->part_queue->pop_time); }
     global_end = when();
     if ( verbose ) { wlog( 1, "Overal time taken - Took %.6f seconds\n\n", global_end - global_start ); }
+    
 
 #ifdef USE_MPI
   MPI_Finalize();

@@ -89,13 +89,13 @@ void check_parts( world_t *w ) {
 
   for (l_part_num=0; l_part_num<w->num_local_parts; l_part_num++) {
     index = 0;
-    m = w->parts[ l_part_num ].heat_links;
-    while ( med_hash_iterate_float( m, &index, &key, &tmpf ) ) {
-      if ( *tmpf != 0.0 ) {
-	wlog( 1, "WHOA! non-zero heat at %d,%d!\n",
-		 l_part_num, key );
-      }
-    }
+//    m = w->parts[ l_part_num ].heat_links;
+//    while ( med_hash_iterate_float( m, &index, &key, &tmpf ) ) {
+//      if ( *tmpf != 0.0 ) {
+//	wlog( 1, "WHOA! non-zero heat at %d,%d!\n",
+//		 l_part_num, key );
+//      }
+//    }
   }
 }
 
