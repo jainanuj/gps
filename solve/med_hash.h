@@ -62,6 +62,8 @@ int med_hash_add( med_hash_t *m, int key, val_t val );
 int med_hash_get( med_hash_t *m, int key, val_t *val );
 int med_hash_check( med_hash_t *m, int key );
 
+int med_hash_getp( med_hash_t *m, int key, val_t **val );
+
 int med_hash_add_float( med_hash_t *m, int key, float val );
 int med_hash_get_float( med_hash_t *m, int key, float *val );
 int med_hash_get_floatp( med_hash_t *m, int key, float **val );

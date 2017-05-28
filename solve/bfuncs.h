@@ -102,6 +102,7 @@ void init_part_queue( world_t *w );
 void compute_cross_partition_deps( world_t *w );
 void reorder_states_within_partitions( world_t *w );
 void compute_initial_partition_priorities( world_t *w );
+void cache_dependencies_in_states( world_t *w );
 
 prec_t value_iterate_partition( world_t *w, int l_part );
 prec_t value_iterate( world_t *w );
@@ -135,7 +136,12 @@ void add_dep( world_t *w,
 
 void add_part_ext_dep_states( world_t *w,
                              int g_start_part, int l_start_part,
-                             int l_start_state, int l_end_state, int g_end_part, double **arrayValptrs, int indexVal );
+                             int l_start_state, int l_end_state, int g_end_part );
+
+void add_cache_states(world_t *w,
+                      int g_start_part, int l_start_part,
+                      int l_start_state, int l_end_state, int g_end_part, val_t **arrayValptrs, int indexVal );
+
 
 
 void switch_to_policy_normal( world_t *w, int l_part, int l_state,

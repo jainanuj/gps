@@ -532,6 +532,8 @@ int main( int argc, char *argv[] ) {
   if ( verbose ) { wlog( 1, "Computing cross-partition dependencies...\n" ); }
   t_start = when();
   compute_cross_partition_deps( w );
+  cache_dependencies_in_states( w );
+
   t_end = when();
   if ( verbose ) { wlog( 1, "Took %.6f seconds\n\n", t_end - t_start ); }
 

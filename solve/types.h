@@ -44,7 +44,7 @@ typedef struct state {
   unsigned char policy;
   unsigned char num_actions;
   prec_t *external_dep_vals;
-  double ***external_state_vals;
+  val_t ***external_state_vals;
 } state_t;
 
 typedef struct {
