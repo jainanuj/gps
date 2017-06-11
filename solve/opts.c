@@ -59,6 +59,14 @@ void parse_opts( int argc, char *argv[] ) {
 	mdp_fn = strdup( optarg );
       }
 
+    } else if ( strncmp( opt, "stat_fn", strlen("stat_fn") ) == 0 ) {
+        if ( optarg == NULL ) {
+            fprintf( stderr, "missing stat_fn value" );
+            exit( 0 );
+        } else {
+            stat_fn = strdup( optarg );
+        }
+        
     } else if ( strncmp( opt, "ptp_fn", strlen("ptp_fn") ) == 0 ) {
       if ( optarg == NULL ) {
 	fprintf( stderr, "missing ptp_fn value" );

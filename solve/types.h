@@ -43,8 +43,12 @@ typedef struct state {
   int global_state_index;  /* to map l_state_t to g_state_t */
   unsigned char policy;
   unsigned char num_actions;
-  prec_t *external_dep_vals;
-  val_t ***external_state_vals;
+  prec_t *external_dep_vals;       //array for storing aggregate of all extrnal states to this state so they are not recomputed
+  val_t ***external_state_vals;     //Pointer to value of external state stored in the partition.
+
+    int size_external_dep_vals;            //Just for tracking the memory occupied by the state.
+    int size_external_state_vals;     //Just for tracking the memory occupied by the state.
+    int size_tps;                     //Tracking the memory occupied by transitions from the state.
 } state_t;
 
 typedef struct {
@@ -110,6 +114,12 @@ typedef struct part_t {
 
   /* the cache element for ODCD */
   odcd_cache_elem_t odcd_elem;
+    
+    int size_states;                    //Just for tracking the memory occupied by states in the partition.
+    int size_my_local_deps;             //Just for tracking the memory occupied in the partition.
+    int size_my_ext_parts;              //Just for tracking the memory occupied in the partition.
+    int size_values;                    //Just for tracking the memory occupied in the partition.
+    int size_rhs;                       //Just for tracking the memory occupied in the partition.
 
 #ifdef USE_MPI
   int g_part_num; /* this is this partition's global partition number. */
@@ -169,10 +179,7 @@ typedef struct world_t {
   /* this is the number of policy-iteration sweeps */
   int pi_sweeps, max_pi_sweeps, pi_iters;
 
-  /* this is the state value hash (it maps gsi's to prec_ts)
-     (the prec_t being the current value of the state) */
-  med_hash_t *foreign_state_val_hash;
-
+  
   /* the ODCD cache */
   odcd_cache_t odcd_cache;
 
@@ -187,6 +194,11 @@ typedef struct world_t {
   int max_iters;
   prec_t tol;
 //  double reward_or_value_updatetime;
+    
+    int size_part_queue;                        //Just for tracking the memory occupied by queue in the world.
+    int size_parts[6];                             //Just for tracking the memory occupied by parts in the world.
+    int size_state_to_partnum;                  //Just for tracking the memory occupied by state to part in the world.
+    int size_gsi_to_lsi;                        //Just for tracking the memory occupied by gsi_to_lsi in the world.
 
 
 #ifdef USE_AZTEC
@@ -197,6 +209,9 @@ typedef struct world_t {
 #endif
 
 #ifdef USE_MPI
+    /* this is the state value hash (it maps gsi's to prec_ts)
+     (the prec_t being the current value of the state) */
+    med_hash_t *foreign_state_val_hash;
 
   /* someone else will tell us when to quit */
   int terminate;

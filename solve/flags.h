@@ -9,6 +9,7 @@ extern int verbose;
 extern int do_sanity_checks;
 
 extern char *mdp_fn;
+extern char *stat_fn;
 extern char *state_to_part_fn;
 extern char *part_to_proc_fn;
 extern char *save_fn;

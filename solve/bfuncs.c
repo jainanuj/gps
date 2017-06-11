@@ -56,6 +56,7 @@ void load_state_to_part( world_t *w, char *fn ) {
     wlog( 1, "Error allocating state_to_partnum!\n" );
     exit( 0 );
   }
+    w->size_state_to_partnum = sizeof(int) * w->num_global_states;
 
   max_part = 0;
   for ( i=0; i<w->num_global_states; i++ ) {
@@ -118,6 +119,8 @@ void load_mdp( world_t *w, char *fn ) {
   prec_t *external_deps;
   state_t *st;
   prec_t total_prob, prob;
+    
+    int size_st_delta = 0;
 #ifdef USE_MPI
   prec_t reward;
 #endif
@@ -148,8 +151,10 @@ void load_mdp( world_t *w, char *fn ) {
   w->gsi_to_lsi = (int *)malloc( sizeof(int) * tmpstates );
   if ( w->gsi_to_lsi == NULL ) {
     wlog( 1, "Error allocating gsi_to_lsi!\n" );
+      w->size_gsi_to_lsi = 0;
     exit( 0 );
   }
+    w->size_gsi_to_lsi = sizeof(int) * tmpstates;
 
   line_no = 1;
 
@@ -223,9 +228,14 @@ void load_mdp( world_t *w, char *fn ) {
 
     /* set up this state's information */
     st->tps = tt;
-    st->external_dep_vals = external_deps;
+      st->external_dep_vals = external_deps;
       st->external_state_vals = external_state_vals;
-    st->num_actions = nacts;
+
+      st->size_tps = sizeof(trans_t) * nacts;           //Tracking memory for hte state.
+      st->size_external_state_vals = sizeof(val_t **) * nacts;         //Tracking memory for the state.
+      st->size_external_dep_vals = sizeof(prec_t) * nacts;      //Tracking memory for the state.
+
+      st->num_actions = nacts;
     st->global_state_index = g_state;
 
     /* read in the rewards and transition probabilities */
@@ -260,6 +270,8 @@ void load_mdp( world_t *w, char *fn ) {
       }
 
       st->tps[ a ].entries = et;
+        
+        st->size_tps += sizeof(entry_t) * ndeps;
 
       total_prob = 0;
       end_dep = ndeps-1;
@@ -315,8 +327,15 @@ void load_mdp( world_t *w, char *fn ) {
         else
             st->external_state_vals[a] = NULL;
         
-    }
-  }
+        st->size_external_state_vals += sizeof(val_t *) * st->tps[ a ].ext_deps;
+        
+    }       //End of all actions for a state.
+      size_st_delta = 0;
+      size_st_delta += st->size_external_state_vals + st->size_tps + st->size_external_dep_vals;
+      
+      w->parts[l_part].size_states += size_st_delta;
+      w->size_parts[1] += size_st_delta;
+  }         //End of the states.
 
 }
 
@@ -367,6 +386,10 @@ void allocate_states_in_parts( world_t *w ) {
       exit( 0 );
     }
     memset( w->parts[ l_part ].states, 0, sizeof(state_t)*cnt );
+      
+      w->parts[l_part].size_states = sizeof(state_t)*cnt;
+      
+      w->size_parts[1] += w->parts[l_part].size_states;
   }
 }
 
@@ -376,6 +399,7 @@ void allocate_states_in_parts( world_t *w ) {
 
 int init_world( world_t *w, char *fn ) {
   char odcd_fn[256];
+    int i;
 
   /* figure out how many states we're expecting */
   peek_at_mdp( w, mdp_fn );
@@ -404,6 +428,10 @@ int init_world( world_t *w, char *fn ) {
     exit( 0 );
   }
   memset( w->parts, 0, sizeof(part_t) * w->num_local_parts );
+    
+    for (i = 0; i< 6; i++)
+        w->size_parts[i] = 0;
+    w->size_parts[0] = sizeof(part_t) * w->num_local_parts;
 
   /* figure out how many states there are in each partition */
   count_states_in_parts( w );
@@ -425,6 +453,9 @@ int init_world( world_t *w, char *fn ) {
         exit( 0 );
     }
 
+    w->size_part_queue = sizeof(queue);
+    w->size_part_queue += w->num_local_parts * sizeof(int);
+    
   /* we need to initialize the foreign_state_val_hash */
 #ifdef USE_MPI
   w->foreign_state_val_hash = med_hash_create( 4096 );
@@ -595,6 +626,11 @@ void compute_cross_partition_deps( world_t *w ) {
   int action, s, dep_cnt;
   trans_t *t;
   state_t *st;
+    
+    
+    int indexParthash =0, keyParthash =0;
+    val_t *ptr_valparthash;
+    med_hash_t *m2;
 #ifdef USE_MPI
   int r;
 #endif
@@ -687,11 +723,30 @@ void compute_cross_partition_deps( world_t *w ) {
         //In each of the external partitions will be hash of states belonging to that partition this partition depends on.
         l_end_state = gsi_to_lsi(w, g_end_state);
         add_part_ext_dep_states(w, g_start_part, l_start_part, l_start_state, l_end_state, g_end_part);
-	}
+	
+    }       //End of each dependent for an action.
+      }     //End of each action in a state
+    }       //End of looping over each state in a partitoin
+      
+      w->parts[l_start_part].size_my_local_deps = sizeof(med_hash_t);
+      w->parts[l_start_part].size_my_local_deps +=
+                        w->parts[l_start_part].my_local_dependents->nalloc * sizeof(datum_t);
+      
+      w->parts[l_start_part].size_my_ext_parts = sizeof(med_hash_t);
+      w->parts[l_start_part].size_my_ext_parts +=
+                w->parts[l_start_part].my_ext_parts_states->nalloc * sizeof(datum_t);
+      
+      
+      indexParthash = 0; keyParthash = 0;
+      while(med_hash_iterate(w->parts[l_start_part].my_ext_parts_states, &indexParthash, &keyParthash, &ptr_valparthash))
+      {
+          m2 = ptr_valparthash->vptr;
+          w->parts[l_start_part].size_my_ext_parts += m2->nalloc * sizeof(datum_t);
       }
-    }
-  }
-}
+      w->size_parts[2] += w->parts[l_start_part].size_my_local_deps;
+      w->size_parts[3] += w->parts[l_start_part].size_my_ext_parts;
+  }         //End of looping over each partition
+}           //End of Function
 
 void cache_dependencies_in_states( world_t *w )
 {
@@ -994,7 +1049,6 @@ prec_t value_iterate_partition( world_t *w, int l_part ) {
     while ( med_hash_hash_iterate( dep_part_hash, &index1, &index2,
                                   &g_end_ext_partition, &l_end_ext_state, &val_state_action ))
   {
-      //l_end_ext_state = gsi_to_lsi(w, g_end_ext_state);     //local index of End state in end partition.
       val_state_action->d = w->parts[g_end_ext_partition].values->elts[l_end_ext_state];   //Setting the value of that external state.
   }
     //First iteration.
@@ -1231,11 +1285,13 @@ int get_max_deps_nd( state_t *st, int l_state ) {
 //#ifdef USE_MPI
 
 prec_t get_val( world_t *w, int g_state ) {
-  prec_t f;
+  prec_t f = 0;
+#ifdef USE_MPI
 #ifdef PREC_IS_FLOAT
   med_hash_get_float( w->foreign_state_val_hash, g_state, &f );
 #else
   med_hash_get_double( w->foreign_state_val_hash, g_state, &f );
+#endif
 #endif
   return f;
 }
@@ -1551,6 +1607,13 @@ void part_matrix_init( world_t *w, int l_part ) {
   /* allocate vectors */
   p->values = vec_create( cnt );
   p->rhs = vec_create( cnt );
+    
+    p->size_values = sizeof(vec_t);
+    p->size_values += sizeof(prec_t)* cnt;
+    p->size_rhs = sizeof(vec_t);
+    p->size_rhs += sizeof(prec_t)* cnt;
+    
+    w->size_parts[4] += p->size_rhs;  w->size_parts[5] += p->size_values;
 
   if ( p->rhs == NULL ) {
     wlog( 1, "Error allocating partition rhs/value!\n" );
@@ -1825,53 +1888,26 @@ dependency of a state.
 */
 
 prec_t get_remainder( world_t *w, int l_part, int l_state, int action ) {
-  int i, e_l_state, e_g_state, dep_cnt, e_g_p, e_l_p;
+    int i, dep_cnt;
   trans_t *tt;
   entry_t *ext_et;
-  prec_t val;
     prec_t val_hash, val_hash2;
-    val_t v2;
-    med_hash_t *m2;
-    val_t ext_state_val;
-    val_t *ext_state_val_p;
 
-  val = 0;
-    val_hash = 0;
+    //    int e_g_p, e_l_p, e_l_state, e_g_state;
+    //  prec_t val;
+//    val_t v2;
+//  val = 0;
     val_hash2 = 0;
     
 
   tt = &( w->parts[ l_part ].states[ l_state ].tps[ action ] );
-
   dep_cnt = tt->ext_deps;
+  ext_et = &( tt->entries[ tt->int_deps ] );    //* point to the first external entry
 
-  /* point to the first external entry */
-  ext_et = &( tt->entries[ tt->int_deps ] );
-
-  for ( i=0; i<dep_cnt; i++ ) {
-//    e_g_state = ext_et[ i ].col;
-
-//    e_g_p = state_to_partnum( w, e_g_state );
-
-      //Fetch the values of all external states from the local hash mantained by partition.
-      //This way the external partition doesn't need to be loaded in memory each time.
-      
+  for ( i=0; i<dep_cnt; i++ )
+  {
           val_hash2 += ext_et[ i ].entry * (w->parts[l_part].states[l_state].external_state_vals[action][i]->d);
 
-/*
-      if (med_hash_get(w->parts[l_part].my_ext_parts_states, e_g_p, &v2) == MH_FOUND)
-      {
-          m2 = (med_hash_t *)v2.vptr;
-          e_l_state = gsi_to_lsi(w, e_g_state);
-//          if (med_hash_get(m2, e_l_state, &ext_state_val) == MH_FOUND)
-//              val_hash += ext_et[ i ].entry * (ext_state_val.d);
-          if (med_hash_getp(m2, e_l_state, &ext_state_val_p) == MH_FOUND)
-                val_hash += ext_et[ i ].entry * (ext_state_val_p->d);
-      }
-      
-      if (ext_state_val_p != w->parts[l_part].states[l_state].external_state_vals[action][i])
-          wlog( 1, "!!Val ptr not set correctly for part: %d state: %d action: %d dependent: %d \n",
-               l_part, l_state, action, i);
-*/
 #ifdef NO_CACHE_HASH
       if ( is_partition_local( w, e_g_p ) ) {
       /* e_g_p is in a partition that's local to this processor. */
@@ -1888,8 +1924,6 @@ prec_t get_remainder( world_t *w, int l_part, int l_state, int action ) {
 #endif
   }
 
-//    if ( ((val_hash - val_hash2) > heat_epsilon) || ((val_hash2 - val_hash) > heat_epsilon) )
-//        wlog( 1, "Something went wrong as val_hash: %.6f is not same as val_hash2: %.6f", val_hash, val_hash2 );
 //      return val;
   return val_hash2;
 }

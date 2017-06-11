@@ -8,6 +8,7 @@ char *mdp_fn = NULL;
 char *state_to_part_fn = NULL;
 char *part_to_proc_fn = NULL;
 char *save_fn = NULL;
+char *stat_fn = NULL;
 
 int heat_metric = HEAT_STD;
 int run_type = RUN_VI;
