@@ -72,6 +72,98 @@ void load_state_to_part( world_t *w, char *fn ) {
   fclose( fp );
 }
 
+
+void load_states_to_sub_part( world_t *w, char *fn)
+{
+    FILE *fp;
+    int i, max_part, j, cnt;
+    int sub_part;
+    struct stat st_buf;
+    int status;
+    
+    w->size_parts[6] = 0;
+    if ( fn == NULL )
+    {
+        w->state_to_subpartnum = NULL;
+        return;
+    }
+    status = stat (fn, &st_buf);
+    if ( (status != 0) || (S_ISDIR (st_buf.st_mode)) )
+    {
+        wlog (1, "%s is a directory.\n", fn);
+        w->state_to_subpartnum = NULL;
+        return;
+    }
+    fp = fopen( fn, "rb" );       //.sub-part file. - Anuj
+    if ( fp == NULL )
+    {
+        w->state_to_subpartnum = NULL;
+        return;
+    }
+    
+    reset_tokenizer();
+    
+    w->state_to_subpartnum = (int *)malloc( sizeof(int) * w->parts[0].num_states );
+    w->size_parts[6] += sizeof(int) * w->parts[0].num_states;
+    
+
+    if ( w->state_to_subpartnum == NULL )
+    {
+        wlog( 1, "Error allocating state_to_partnum!\n" );
+        exit( 0 );
+    }
+    
+    max_part = 0;
+
+    //Assuming all parts have same number of states as part 0.
+    for ( i=0; i<w->parts[0].num_states; i++ )
+    {
+        get_token( TOKEN_INT, fp, &( w->state_to_subpartnum[i] ) );
+        if ( w->state_to_subpartnum[i] > max_part )
+        {
+            max_part = w->state_to_subpartnum[i];
+        }
+    }
+    fclose( fp );
+
+    for (i = 0; i< w->num_local_parts; i++)
+    {
+        w->parts[i].num_sub_parts = max_part + 1;
+        w->parts[i].sub_parts = (sub_part_t *)malloc(sizeof(sub_part_t) * w->parts[i].num_sub_parts);
+        
+        w->parts[i].size_sub_parts = sizeof(sub_part_t) * w->parts[i].num_sub_parts;
+        w->size_parts[6] += sizeof(sub_part_t) * w->parts[i].num_sub_parts;
+        
+        memset(w->parts[i].sub_parts, 0, sizeof(sub_part_t) * w->parts[i].num_sub_parts);
+    }
+
+    for ( i=0; i<w->parts[0].num_states; i++ )
+    {
+        sub_part = w->state_to_subpartnum[i];
+        w->parts[ 0 ].sub_parts[sub_part].num_states_sub++;
+    }
+    cnt = w->parts[ 0 ].sub_parts[0].num_states_sub;
+    
+    for (i = 0; i < w->num_local_parts; i++)
+    {
+        for (j = 0; j < w->parts[i].num_sub_parts; j++)
+        {
+            w->parts[i].sub_parts[j].num_states_sub = 0;
+            w->parts[i].sub_parts[j].sub_parts_states = (int *)malloc(sizeof(int) * cnt);
+
+            w->parts[i].size_sub_parts += sizeof(int) * cnt;
+            w->size_parts[6] += sizeof(int) * cnt;
+        }
+        for ( j=0; j<w->parts[i].num_states; j++ )
+        {
+            sub_part = w->state_to_subpartnum[j];
+            w->parts[i].sub_parts[sub_part].sub_parts_states[
+                                                             w->parts[i].sub_parts[sub_part].num_states_sub++
+                                                             ] = j;
+        }
+    }
+}
+
 void load_part_to_proc( world_t *w, char *fn ) {
   /*
 
@@ -347,6 +439,12 @@ void acquire_state_to_part( world_t *w ) {
   load_state_to_part( w, state_to_part_fn );
 }
 
+void sub_divide_parts (world_t *w)
+{
+    load_states_to_sub_part(w, part_to_sub_part_fn);
+}
+
+
 void acquire_part_to_proc( world_t *w ) {
 
 #ifdef USE_MPI
@@ -429,24 +527,19 @@ int init_world( world_t *w, char *fn ) {
   }
   memset( w->parts, 0, sizeof(part_t) * w->num_local_parts );
     
-    for (i = 0; i< 6; i++)
+    for (i = 0; i< 7; i++)
         w->size_parts[i] = 0;
+    
+//    memset(w->size_parts, 0, sizeof(w->size_parts) )
     w->size_parts[0] = sizeof(part_t) * w->num_local_parts;
 
-  /* figure out how many states there are in each partition */
   count_states_in_parts( w );
 
   /* allocate the states in each partition */
   allocate_states_in_parts( w );
+    
+    sub_divide_parts(w);
 
-  /* Create our local priority queue. This is done with a heap. */
-/*  w->part_heap = heap_create( w->num_local_parts, part_cmp_func,
-			      part_swap_func, part_add_func, w );
-  if ( w->part_heap == NULL ) {
-    wlog( 1, "Error creating heap!\n" );
-    exit( 0 );
-  }
-  */
   w->part_queue = queue_create(w->num_local_parts);
   if ( w->part_queue == NULL ) {
         wlog( 1, "Error creating queue!\n" );
@@ -455,6 +548,23 @@ int init_world( world_t *w, char *fn ) {
 
     w->size_part_queue = sizeof(queue);
     w->size_part_queue += w->num_local_parts * sizeof(int);
+    
+    //Create a queue for each partition to process the sub-parts in that part.
+    if (w->state_to_subpartnum != NULL)
+    {
+        for (i = 0; i < w->num_local_parts; i++)
+        {
+            w->parts[i].sub_part_queue = queue_create(w->parts[i].num_sub_parts);
+            if (w->parts[i].sub_part_queue == NULL )
+            {
+                wlog( 1, "Error creating sub-queue!\n" );
+                exit( 0 );
+            }
+            w->size_parts[6] += sizeof(queue);
+            w->size_parts[6] += w->parts[i].num_sub_parts * sizeof(int);
+            w->parts[i].size_sub_parts += sizeof(queue) + w->parts[i].num_sub_parts * sizeof(int);
+        }
+    }
     
   /* we need to initialize the foreign_state_val_hash */
 #ifdef USE_MPI
@@ -467,13 +577,13 @@ int init_world( world_t *w, char *fn ) {
 
   /* Miscellaneous initializations */
 
-  misc_mpi_initialization( w );
+//  misc_mpi_initialization( w );
 
-  if ( odcd_enabled() ) {
+/*  if ( odcd_enabled() ) {
     sprintf( odcd_fn, odcd_cache_fn_format, getpid() );
     odcd_cache_init( &(w->odcd_cache), odcd_cache_size, odcd_fn );
   }
-
+*/
   if ( verbose ) {
     wlog( 1, "  Done initializing partitions.\n" );
   }
@@ -485,6 +595,8 @@ int init_world( world_t *w, char *fn ) {
 
 
   initialize_partitions( w );
+    if (w->state_to_subpartnum != NULL)
+        initialize_sub_partitions(w);
 //  w->reward_or_value_updatetime = 0.0;
 
   return 1;
@@ -614,13 +726,22 @@ void init_part_queue( world_t *w )
     }
 }
 
+void init_sub_part_queue( world_t *w, int part )
+{
+    int l_sub_part_num;
+    for ( l_sub_part_num=0; l_sub_part_num<w->parts[part].num_sub_parts; l_sub_part_num++ )
+    {
+        queue_add( w->parts[part].sub_part_queue, l_sub_part_num );
+    }
+}
 
 /*
  * ----------------------------------------------------------------------------
  */
 
 void compute_cross_partition_deps( world_t *w ) {
-  int g_start_state, l_start_state, state_cnt;
+  int g_start_state, l_start_state, state_cnt, l_part, l_sub_part;
+    int l_start_sub_part, l_end_sub_part;
   int l_start_part, g_start_part;
   int g_end_state, g_end_part, l_end_state;
   int action, s, dep_cnt;
@@ -702,10 +823,21 @@ void compute_cross_partition_deps( world_t *w ) {
 
 #endif
 
-	  if ( g_start_part == g_end_part ) {
-	    /* no further action required if it's in our partition. */
-	    continue;
-	  }
+	  if ( g_start_part == g_end_part )
+      {
+          if (w->state_to_subpartnum != NULL)
+          {
+              l_end_state = gsi_to_lsi(w, g_end_state);
+              l_start_sub_part = w->state_to_subpartnum[l_start_state];
+              l_end_sub_part = w->state_to_subpartnum[l_end_state];
+              if (l_start_sub_part != l_end_sub_part)
+              {
+                  med_hash_set_add( w->parts[ g_start_part ].sub_parts[l_end_sub_part].my_local_dependents,
+                                   l_start_sub_part, l_start_state ); //l_start_state might need to be replaced by l_start_sub_state. TODO - Anuj
+              }
+          }
+          continue;
+      }
 
 	  /* ok.  g_end_state isn't in our partition.
 	     that means that g_end_part has an inverse link to us. */
@@ -728,9 +860,6 @@ void compute_cross_partition_deps( world_t *w ) {
       }     //End of each action in a state
     }       //End of looping over each state in a partitoin
       
-      w->parts[l_start_part].size_my_local_deps = sizeof(med_hash_t);
-      w->parts[l_start_part].size_my_local_deps +=
-                        w->parts[l_start_part].my_local_dependents->nalloc * sizeof(datum_t);
       
       w->parts[l_start_part].size_my_ext_parts = sizeof(med_hash_t);
       w->parts[l_start_part].size_my_ext_parts +=
@@ -743,10 +872,31 @@ void compute_cross_partition_deps( world_t *w ) {
           m2 = ptr_valparthash->vptr;
           w->parts[l_start_part].size_my_ext_parts += m2->nalloc * sizeof(datum_t);
       }
-      w->size_parts[2] += w->parts[l_start_part].size_my_local_deps;
       w->size_parts[3] += w->parts[l_start_part].size_my_ext_parts;
   }         //End of looping over each partition
+    
+    for (l_part = 0; l_part < w->num_local_parts; l_part++)
+    {
+        w->parts[l_part].size_my_local_deps = sizeof(med_hash_t);
+        w->parts[l_part].size_my_local_deps += w->parts[l_part].my_local_dependents->nalloc
+                                                        * sizeof(datum_t);
+        w->size_parts[2] += w->parts[l_part].size_my_local_deps;
+        if (w->state_to_subpartnum != NULL)
+        {
+            for (l_sub_part = 0; l_sub_part < w->parts[l_part].num_sub_parts; l_sub_part++)
+            {
+                w->parts[l_part].size_sub_parts += sizeof(med_hash_t);
+                w->parts[l_part].size_sub_parts += w->parts[l_part].sub_parts[l_sub_part].my_local_dependents->nalloc
+                                                * sizeof(datum_t);
+                w->size_parts[6] += sizeof(med_hash_t) +
+                                                w->parts[l_part].sub_parts[l_sub_part].my_local_dependents->nalloc
+                                                * sizeof(datum_t);
+            }
+        }
+    }
+    
 }           //End of Function
+
 
 void cache_dependencies_in_states( world_t *w )
 {
@@ -1024,23 +1174,24 @@ prec_t value_sum( world_t *w ) {
 
 /* washes over the partition once */ // - This does it just once - Anuj
 //Now it does it till the partiton is completely solved.
-prec_t value_iterate_partition( world_t *w, int l_part ) {
-  part_t *pp;
-  int l_state, state_cnt;
-  float max_heat, delta, part_internal_heat;
-  med_hash_t *dep_part_hash;
-  int numPartitionIters = 0;
+prec_t value_iterate_partition( world_t *w, int l_part )
+{
+    part_t *pp;
+    int l_state, state_cnt, l_sub_part;
+    float max_heat, delta, part_internal_heat, tmp;
+    med_hash_t *dep_part_hash;
+    int numPartitionIters = 0;
     
     int g_end_ext_partition, g_end_ext_state, l_end_ext_state, index1 = 0, index2 = 0;
     val_t *val_state_action;
 /*   FILE *fp; */
 
   /* make sure that the data is in the odcd cache! */
-  part_check_in( w, l_part );
+    part_check_in( w, l_part );
 
-  max_heat = 0;
-  pp = &( w->parts[ l_part ] );
-  state_cnt = pp->num_states;
+    max_heat = 0;
+    pp = &( w->parts[ l_part ] );
+    state_cnt = pp->num_states;
 
 
     dep_part_hash = w->parts[l_part].my_ext_parts_states;
@@ -1048,58 +1199,95 @@ prec_t value_iterate_partition( world_t *w, int l_part ) {
     //Load their values from their respective partition arrays.
     while ( med_hash_hash_iterate( dep_part_hash, &index1, &index2,
                                   &g_end_ext_partition, &l_end_ext_state, &val_state_action ))
-  {
-      val_state_action->d = w->parts[g_end_ext_partition].values->elts[l_end_ext_state];   //Setting the value of that external state.
-  }
+    {
+        val_state_action->d = w->parts[g_end_ext_partition].values->elts[l_end_ext_state];   //Setting the value of that external state.
+    }
     //First iteration.
-  for ( l_state = 0; l_state < state_cnt; l_state++ )
-  {
-      delta = value_update( w, l_part, l_state );
-      max_heat = MAX( fabs( delta ), max_heat );
-  }
- 
-  //This is equivalent to while(true) as we don't change max_heat in the while loop.
-  //If max_heat == 0 we don't need to enter this loop as partition is already cold.
-  while(max_heat > 0)
-  {
-      //part_internal_heat initialized to 0 at beginning of each iteration.
-      //It attains value of max heat in that iteration and keeps on reducing with every iteration.
-      //It signifies that we are making progress within the partition.
-      part_internal_heat = 0;
-      for ( l_state = 0; l_state < state_cnt; l_state++ )
-      {
-          delta = value_update_iters( w, l_part, l_state );
-          part_internal_heat = MAX( fabs( delta ), part_internal_heat );
-      }
-      w->parts[ l_part ].washes++;
-      numPartitionIters++;
-      if (part_internal_heat < heat_epsilon) //excluding (numPartitionIters > MAX_ITERS_PP) ||
-      {
-          //if (numPartitionIters > 1)
-            //if (numPartitionIters >= 20)
-              //  if ( verbose ) { wlog( 1, "Partition %d was processed %d number of times. Part Internal Heat is: %.6f. Max heat to begin with is: %.6f \n", l_part, numPartitionIters, part_internal_heat, max_heat ); }
-
-              
-          break;
-      }
-
-  }
-
-#ifdef USE_MPI
-  /* inform foreign processors!*/
-  send_partition_update( w, l_part );
-#endif
-
-/*   fp = fopen( "/tmp/vidata", "a" ); */
-/*   fprintf( fp, "%.6f\n", max_heat ); */
-/*   fclose( fp ); */
-
-/*   fp = fopen( "/tmp/sumdata", "a" ); */
-/*   fprintf( fp, "%.6f\n", value_sum( w ) ); */
-/*   fclose( fp ); */
-
-  return max_heat;
+    for ( l_state = 0; l_state < state_cnt; l_state++ )
+    {
+        delta = value_update( w, l_part, l_state );
+        max_heat = MAX( fabs( delta ), max_heat );
+    }
+    
+    if ((w->state_to_subpartnum != NULL) && (max_heat > heat_epsilon) )
+    {
+        empty_queue(w->parts[l_part].sub_part_queue);
+        init_sub_part_queue(w, l_part);
+    
+        while (sub_part_available_to_process(w, l_part))
+        {
+            l_sub_part = get_next_sub_part(w, l_part);
+            tmp = value_iterate_sub_partition( w, l_part, l_sub_part);
+            if (tmp > heat_epsilon)
+            {
+                add_sub_partition_deps_for_eval(w, l_part, l_sub_part);
+                max_heat = tmp;
+            }
+        }
+    }
+    else if (max_heat > heat_epsilon)
+    {
+        //This is equivalent to while(true) as we don't change max_heat in the while loop.
+        //If max_heat == 0 we don't need to enter this loop as partition is already cold.
+        while(max_heat > 0)
+        {
+            //part_internal_heat initialized to 0 at beginning of each iteration.
+            //It attains value of max heat in that iteration and keeps on reducing with every iteration.
+            //It signifies that we are making progress within the partition.
+            part_internal_heat = 0;
+            for ( l_state = 0; l_state < state_cnt; l_state++ )
+            {
+                delta = value_update_iters( w, l_part, l_state );
+                part_internal_heat = MAX( fabs( delta ), part_internal_heat );
+            }
+            w->parts[ l_part ].washes++;
+            numPartitionIters++;
+            if (part_internal_heat < heat_epsilon) //excluding (numPartitionIters > MAX_ITERS_PP) ||
+            {
+                //if (numPartitionIters > 1)
+                //if (numPartitionIters >= 20)
+                //  if ( verbose ) { wlog( 1, "Partition %d was processed %d number of times. Part Internal Heat is: %.6f. Max heat to begin with is: %.6f \n", l_part, numPartitionIters, part_internal_heat, max_heat ); }
+                break;
+            }
+        }
+    }
+    return max_heat;
 }
+
+prec_t value_iterate_sub_partition( world_t *w, int l_part, int l_sub_part)
+{
+    int state_cnt, l_sub_state;
+    float delta, max_change, sub_part_internal_heat;
+    state_cnt = w->parts[l_part].sub_parts[l_sub_part].num_states_sub;
+    
+    max_change = 0;
+    while(1)
+    {
+        //part_internal_heat initialized to 0 at beginning of each iteration.
+        //It attains value of max heat in that iteration and keeps on reducing with every iteration.
+        //It signifies that we are making progress within the partition.
+        sub_part_internal_heat = 0;
+        for ( l_sub_state = 0; l_sub_state < state_cnt; l_sub_state++ )
+        {
+            delta = value_update_iters( w, l_part, w->parts[l_part].sub_parts[l_sub_part].sub_parts_states[l_sub_state] );
+            sub_part_internal_heat = MAX( fabs( delta ), sub_part_internal_heat );
+            if (sub_part_internal_heat > max_change)
+                max_change = sub_part_internal_heat;
+        }
+//        numPartitionIters++;
+        if (sub_part_internal_heat < heat_epsilon) //excluding (numPartitionIters > MAX_ITERS_PP) ||
+        {
+            //if (numPartitionIters > 1)
+            //if (numPartitionIters >= 20)
+            //  if ( verbose ) { wlog( 1, "Partition %d was processed %d number of times. Part Internal Heat is: %.6f. Max heat to begin with is: %.6f \n", l_part, numPartitionIters, part_internal_heat, max_heat ); }
+            
+            
+            break;
+        }
+    }
+    return max_change;
+}
+
 
 /* washes over all of the partitions */
 prec_t value_iterate( world_t *w ) {
@@ -1676,24 +1864,15 @@ void initialize_partitions( world_t *w ) {
   for ( l_part=0; l_part<w->num_local_parts; l_part++ ) {
 
     /* create the dependency hashes for this partition */
-//    w->parts[ l_part ].heat_links = med_hash_create( 4 );
     w->parts[ l_part ].my_local_dependents = med_hash_create( 4 );
     w->parts[ l_part ].my_ext_parts_states = med_hash_create( 4 );
 
-#ifdef USE_MPI
-    w->parts[ l_part ].my_foreign_dependents = med_hash_create( 4 );
-    w->parts[ l_part ].endpart_to_startstate = med_hash_create( 4 );
-#endif
 
     if ( //w->parts[ l_part ].heat_links == NULL ||
-#ifdef USE_MPI
-	 w->parts[ l_part ].my_foreign_dependents == NULL ||
-	 w->parts[ l_part ].endpart_to_startstate == NULL ||
-#endif
 	 w->parts[ l_part ].my_local_dependents == NULL ||
-     w->parts[ l_part ].my_ext_parts_states  == NULL ) {
-      wlog( 1, "Error creating dependency hashes for part %d!\n",
-	    l_part );
+     w->parts[ l_part ].my_ext_parts_states  == NULL)
+    {
+      wlog( 1, "Error creating dependency hashes for part %d!\n", l_part );
       exit( 0 );
     }
 
@@ -1702,6 +1881,35 @@ void initialize_partitions( world_t *w ) {
 
   }
 }
+
+void initialize_sub_partitions( world_t *w )
+{
+    int l_part, sub_part;
+    
+    if (w->state_to_subpartnum == NULL)
+        return;
+
+    for ( l_part=0; l_part<w->num_local_parts; l_part++ )
+    {
+        for (sub_part = 0; sub_part < w->parts[l_part].num_sub_parts; sub_part++)
+        {
+        
+            /* create the dependency hashes for this partition */
+            w->parts[ l_part ].sub_parts[sub_part].my_local_dependents = med_hash_create( 4 );
+//            w->parts[ l_part ].sub_parts[sub_part].my_ext_parts_states = med_hash_create( 4 );
+        
+            if (w->parts[ l_part ].sub_parts[sub_part].my_local_dependents == NULL
+                //|| w->parts[ l_part ].my_ext_parts_states  == NULL
+                )
+            {
+                wlog( 1, "Error creating dependency hashes for part %d and sub-part %d!\n", l_part, sub_part );
+                exit( 0 );
+            }
+//            part_matrix_init( w, l_part );
+        }
+    }
+}
+
 
 /*
  * ----------------------------------------------------------------------------

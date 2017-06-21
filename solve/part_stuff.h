@@ -25,7 +25,11 @@ int pick_partition( world_t *w );
 void part_check_in( world_t *w, int l_part_num );
 
 int get_next_part(world_t *w);
+int get_next_sub_part(world_t *w, int l_part);
 void add_partition_deps_for_eval(world_t *w, int l_part_changed);
+void add_sub_partition_deps_for_eval(world_t *w, int l_part, int l_sub_part_changed);
 int part_available_to_process(world_t *w);
+int sub_part_available_to_process(world_t *w, int l_part);
+
 
 #endif // defined _PART_STUFF_H

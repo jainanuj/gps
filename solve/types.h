@@ -65,6 +65,13 @@ typedef struct {
  * ----------------------------------------------------------------------------
  */
 
+//Each part is further divided into sub parts
+typedef struct sub_part_t {
+    int *sub_parts_states;        //This is an array of state indices for that sub part
+    int num_states_sub;     //Number of states in each sub_part (read in so far);
+    med_hash_t *my_local_dependents;
+} sub_part_t;
+
 typedef struct part_t {
 
   /* In general, heat is defined strictly between partitions.  However,
@@ -93,17 +100,6 @@ typedef struct part_t {
 
   matrix_t *cur_pol_matrix;
 
-#ifdef USE_AZTEC
-  int *bindx, data_org[AZ_COMM_SIZE];
-  double *val;
-#endif
-
-  /* this partition has heat links to several other partitions.
-     we don't distinguish between local and foreign here.
-     this is just a map from integers (which are partition numbers)
-     to prec_ts (which are the heats). */
-//  med_hash_t *heat_links;
-
   /* this hash collects all of the partitions (LOCAL ONLY) that depend
      on this partition.  this hash maps partition numbers to hashes. */
   med_hash_t *my_local_dependents;
@@ -111,6 +107,13 @@ typedef struct part_t {
 
   /* for visualization stuff */
   char marked;
+    
+    //Sub-dividing each part into sub parts.
+    sub_part_t *sub_parts;
+    int num_sub_parts;
+    queue *sub_part_queue;      //Queue of sub_parts
+    
+
 
   /* the cache element for ODCD */
   odcd_cache_elem_t odcd_elem;
@@ -120,32 +123,9 @@ typedef struct part_t {
     int size_my_ext_parts;              //Just for tracking the memory occupied in the partition.
     int size_values;                    //Just for tracking the memory occupied in the partition.
     int size_rhs;                       //Just for tracking the memory occupied in the partition.
-
-#ifdef USE_MPI
-  int g_part_num; /* this is this partition's global partition number. */
-
-  /* this hash collects all of the foreign processors that depend on
-     some state within this partition. */
-  med_hash_t *my_foreign_dependents;
-
-  /* this hash collects information mapping end partitions to starting
-     states.  Again, it's so that we can processing incoming messages */
-  med_hash_t *endpart_to_startstate;
-#endif
-
+    int size_sub_parts;                 //Tracking memory by everything sub_part.
 } part_t;
 
-#ifdef USE_MPI
-/* this structure is used for sending messages to other processors.
-   We have a separate buffer for each processor, and a separate
-   MPI_Request type (because we use non-blocking sends). */
-typedef struct mpi_req_stuff {
-  MPI_Request mpi_req;
-  int in_use;
-  int buf_size;
-  char *buf;
-} mpi_req_stuff;
-#endif
 
 /*
  * ----------------------------------------------------------------------------
@@ -185,6 +165,8 @@ typedef struct world_t {
 
   /* this maps GLOBAL states to GLOBAL partnums! */
   int *state_to_partnum;
+    //Maps state in each part to its sub part.
+    int *state_to_subpartnum;
 
   int *gsi_to_lsi;
 
@@ -196,63 +178,10 @@ typedef struct world_t {
 //  double reward_or_value_updatetime;
     
     int size_part_queue;                        //Just for tracking the memory occupied by queue in the world.
-    int size_parts[6];                             //Just for tracking the memory occupied by parts in the world.
+    int size_parts[7];                             //Just for tracking the memory occupied by parts in the world.
     int size_state_to_partnum;                  //Just for tracking the memory occupied by state to part in the world.
     int size_gsi_to_lsi;                        //Just for tracking the memory occupied by gsi_to_lsi in the world.
 
-
-#ifdef USE_AZTEC
-    int az_proc_config[AZ_PROC_SIZE];
-    int az_options[AZ_OPTIONS_SIZE];
-    double az_params[AZ_PARAMS_SIZE];
-    double az_status[AZ_STATUS_SIZE];
-#endif
-
-#ifdef USE_MPI
-    /* this is the state value hash (it maps gsi's to prec_ts)
-     (the prec_t being the current value of the state) */
-    med_hash_t *foreign_state_val_hash;
-
-  /* someone else will tell us when to quit */
-  int terminate;
-  /* am I done processing stuff? */
-  int processing_done;
-  /* the number of processors that are done.  only significant for root. */
-  int processing_done_cnt;
-
-  int term_ping;
-  int term_state;
-
-
-  int ltfsd_done_cnt;
-  int ltfsd_done;
-  int ltfsd_myturn;
-
-  /* total number of messages we have sent */
-  int messages_sent;
-  /* total size of the messages we have sent */
-  int message_size;
-
-  /* partition to processor mapping.  Who has what? If we have the
-     partition, then what's its index in our local partition array? */
-  /* this maps GLOBAL parts to processors! */
-  part_proc_t *part_to_proc;
-
-  /* this helps for processing messages from other procs. */
-  med_hash_t *endpart_to_startpart;
-  med_hash_t *fproc_data;
-
-  int num_procs;
-  int my_proc_num;
-  char proc_name[MPI_MAX_PROCESSOR_NAME];
-  int proc_namelen;
-
-  int *recv_buf;
-  int max_recv_size;
-
-  mpi_req_stuff *mpi_reqs;
-    
-#endif /* def USE_MPI */
 
 } world_t;
 

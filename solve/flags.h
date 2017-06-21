@@ -11,6 +11,7 @@ extern int do_sanity_checks;
 extern char *mdp_fn;
 extern char *stat_fn;
 extern char *state_to_part_fn;
+extern char *part_to_sub_part_fn;
 extern char *part_to_proc_fn;
 extern char *save_fn;
 
@@ -42,6 +43,8 @@ extern float heat_epsilon;
 extern char *echo_string;
 
 extern int num_attractors;
+
+extern int num_states_sub_parts;
 
 extern int odcd_cache_size;
 extern char *odcd_cache_fn_format;

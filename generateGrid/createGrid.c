@@ -37,7 +37,12 @@ int getNextState(int curState, int action)
 {
     int curCoord[2];        //X, Y
     getIndextoCoord(curState, curCoord);
-    if (action == 0)            //NORTH
+
+    if ((curCoord[0] == endX) && (curCoord[1] == endY))
+    {
+        //Goal state. All actions stay at the same place. So do nothing.
+    }
+    else if (action == 0)            //NORTH
     {
         if (curCoord[1] != 0)           //Y
             curCoord[1]--;
@@ -87,8 +92,10 @@ void createMDP()
         for (action = 0; action < 4; action++)
         {
             int nextState = getNextState(i, action);
-            if (nextState == goalState)
+            if ((nextState == goalState) && (i != goalState))
                 reward = 1.0;
+            else if ((i == nextState) && (i != goalState))
+                reward = -1.0;
             else
                 reward = 0.0;
             fprintf(fp, "%.2f 1 %d 0.99\n", reward, nextState);

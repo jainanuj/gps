@@ -4,12 +4,12 @@
 
 /* don't use floats with this function -- you'll run into precision
  problems!*/
-double whenq( void ) {
+/*double whenq( void ) {
     struct timeval tv;
     gettimeofday( &tv, NULL );
     return (double)(tv.tv_sec) + (double)(tv.tv_usec)*(double)(1e-6);
 }
-
+*/
 
 
 int check_obj_present_in_q(queue* q, int obj)
@@ -65,6 +65,17 @@ queue *queue_create( int maxitems ) {
   return q;
 }
 
+int empty_queue( queue *q)
+{
+    q->numitems = 0;
+    q->end_item_ptr = 0;
+    q->start_item_ptr = 0;
+#ifdef BITQ
+    empty_bit_queue(q->bitqueue);
+#endif
+    return 0;
+}
+
 //
 // ----------------------------------------------------------------------------
 //
@@ -74,7 +85,7 @@ queue *queue_create( int maxitems ) {
 int queue_add( queue *q, int obj )
 {
     double t_start, t_end;
-    t_start = whenq();
+//    t_start = whenq();
     int pos = 0;
 
 #ifndef BITQ
@@ -100,9 +111,9 @@ int queue_add( queue *q, int obj )
 #ifdef BITQ
     queue_add_bit(q->bitqueue, obj);
 #endif
-    t_end = whenq();
+//    t_end = whenq();
     
-    q->add_time += (t_end - t_start);
+//    q->add_time += (t_end - t_start);
     
     return 1;
 }
@@ -114,7 +125,7 @@ int queue_add( queue *q, int obj )
 int queue_pop(queue *q, int *result )
 {
     double t_start, t_end;
-    t_start = whenq();
+//    t_start = whenq();
     if ( (q->numitems <= 0) || (q->start_item_ptr < 0) )
     {
         fprintf( stderr, "Hey! queue's empty!\n" );
@@ -129,8 +140,8 @@ int queue_pop(queue *q, int *result )
     bit_queue_pop(q->bitqueue, *result);
 #endif
     
-    t_end = whenq();
-    q->pop_time += (t_end - t_start);
+//    t_end = whenq();
+//    q->pop_time += (t_end - t_start);
     return 1;
 }
 
@@ -166,6 +177,16 @@ bit_queue *create_bit_queue( int max_items)
     bq->max_bit_arrays = num_bit_arrays;
     return bq;
     
+}
+
+int empty_bit_queue(bit_queue *bq)
+{
+    int i;
+    for (i = 0; i < bq->max_bit_arrays; i++)
+    {
+        bq->bit_arrays[i] = 0;
+    }
+    return 0;
 }
 
 int check_bit_obj_present( bit_queue *bq, int obj )

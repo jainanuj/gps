@@ -6,6 +6,7 @@ int do_sanity_checks = 0;
 
 char *mdp_fn = NULL;
 char *state_to_part_fn = NULL;
+char *part_to_sub_part_fn = NULL;
 char *part_to_proc_fn = NULL;
 char *save_fn = NULL;
 char *stat_fn = NULL;
@@ -24,6 +25,8 @@ float heat_epsilon = 0.00001;
 char *echo_string = NULL;
 
 int num_attractors = 0;
+
+int num_states_sub_parts = 0;
 
 int odcd_cache_size = -1;
 char *odcd_cache_fn_format = "/tmp/odcd_cache-%d";

@@ -374,6 +374,8 @@ void print_general_information( world_t *w ) {
   wlog( 1, "Global States       = %d\n", w->num_global_states );
   wlog( 1, "Local Partitions    = %d\n", w->num_local_parts );
   wlog( 1, "Global Partitions   = %d\n", w->num_global_parts );
+  wlog( 1, "Sub-Parts / part    = %d\n", w->parts[0].num_sub_parts);
+    
   if ( use_voting == VOTE_YES ) {
     wlog( 1, "  using voting!\n" );
   } else {
@@ -420,11 +422,12 @@ void print_general_information( world_t *w ) {
         wlog(1, "Total part %d size= %d, ld=%d;ed=%d;v=%d;r=%d\n", i, w->parts[i].size_states, w->parts[i].size_my_local_deps, w->parts[i].size_my_ext_parts, w->parts[i].size_values, w->parts[i].size_rhs);
     }
 */
-    wlog(1, "All parts sizes 0= %d; 1 = %d; 2 = %d; 3=%d; 4=%d; 5=%d\n", w->size_parts[0], w->size_parts[1], w->size_parts[2],
-         w->size_parts[3], w->size_parts[4], w->size_parts[5]);
+    wlog(1, "All parts sizes 0= %d; 1 = %d; 2 = %d; 3=%d; 4=%d; 5=%d; 6=%d\n",
+         w->size_parts[0], w->size_parts[1], w->size_parts[2], w->size_parts[3],
+         w->size_parts[4], w->size_parts[5], w->size_parts[6]);
     
     avg_part_size = (double)(w->size_parts[0] +w->size_parts[1] + w->size_parts[2]
-                             + w->size_parts[3] + w->size_parts[4] +w->size_parts[5])/w->num_local_parts;
+                             + w->size_parts[3] + w->size_parts[4] +w->size_parts[5] + w->size_parts[6])/w->num_local_parts;
     
     wlog(1, "Avg partition size = %.6f\n", avg_part_size);
     
@@ -763,11 +766,13 @@ Deleted.
     avg_part_size = (double)(w->size_parts[0] +w->size_parts[1] + w->size_parts[2]
                              + w->size_parts[3] + w->size_parts[4] +w->size_parts[5])/w->num_local_parts;
     
-    fp = fopen(stat_fn, "ab");
-    fprintf(fp, "%.6f, %d, %.6f, %.6f, %.6f \n", avg_part_size, w->num_value_updates + w->num_value_updates_iters,
-            global_end - global_start, iter_time, w->part_queue->add_time +  w->part_queue->pop_time);
-    fclose(fp);
-    
+    if (stat_fn != NULL)
+    {
+        fp = fopen(stat_fn, "ab");
+        fprintf(fp, "%.6f, %d, %.6f, %.6f, %.6f \n", avg_part_size, w->num_value_updates + w->num_value_updates_iters,
+                global_end - global_start, iter_time, w->part_queue->add_time +  w->part_queue->pop_time);
+        fclose(fp);
+    }
 
 #ifdef USE_MPI
   MPI_Finalize();

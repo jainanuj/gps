@@ -56,6 +56,10 @@ int queue_add( queue *q, int a );
 int queue_pop( queue *q, int *result );
 int check_obj_present_in_q( queue *q, int obj);
 int queue_has_items(queue *q);
+int empty_queue( queue *q);
+int empty_bit_queue(bit_queue *bq);
+
+
 
 
 #endif

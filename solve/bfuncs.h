@@ -12,6 +12,9 @@
 #include "part_stuff.h"
 #include "par_mpi.h"
 #include "stok.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+
 
 #ifdef USE_AZTEC
 #include "az_aztec.h"
@@ -79,6 +82,11 @@ part for state 3
 void peek_at_mdp( world_t *w, char *fn );
 
 void load_state_to_part( world_t *w, char *fn );
+
+void load_states_to_sub_part(world_t *w, char *fn);
+void sub_divide_parts (world_t *w);
+
+
 void load_part_to_proc( world_t *w, char *fn );
 void load_mdp( world_t *w, char *fn );
 
@@ -97,6 +105,8 @@ void part_swap_func( int lp_a, int lp_b, void *vw );
 void part_add_func( int lp_obj, int pos, void *vw );
 void init_part_heap( world_t *w );
 void init_part_queue( world_t *w );
+void init_sub_part_queue( world_t *w, int part );
+
 
 
 void compute_cross_partition_deps( world_t *w );
@@ -105,6 +115,7 @@ void compute_initial_partition_priorities( world_t *w );
 void cache_dependencies_in_states( world_t *w );
 
 prec_t value_iterate_partition( world_t *w, int l_part );
+prec_t value_iterate_sub_partition( world_t *w, int l_part, int l_sub_part);
 prec_t value_iterate( world_t *w );
 
 prec_t value_update( world_t *w, int l_part, int l_state );
@@ -153,6 +164,7 @@ void part_matrix_init( world_t *w, int l_part_num );
 void setup_initial_policy( world_t *w );
 
 void initialize_partitions( world_t *w );
+void initialize_sub_partitions( world_t *w );
 
 int state_to_partnum( world_t *w, int g_state );
 int lsi_to_gsi( world_t *w, int l_part, int l_state );

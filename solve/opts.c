@@ -83,7 +83,15 @@ void parse_opts( int argc, char *argv[] ) {
 	state_to_part_fn = strdup( optarg );
       }
 
-    } else if ( strncmp( opt, "save_fn", strlen("save_fn") ) == 0 ) {
+    } else if ( strncmp( opt, "sub_parts_st", strlen("sub_parts_st") ) == 0 ) {
+        if ( optarg == NULL ) {
+            fprintf( stderr, "missing sub_parts_st value" );
+            exit( 0 );
+        } else {
+                part_to_sub_part_fn = strdup( optarg );
+            }
+    }
+    else if ( strncmp( opt, "save_fn", strlen("save_fn") ) == 0 ) {
       if ( optarg == NULL ) {
 	fprintf( stderr, "missing save_fn value" );
 	exit( 0 );

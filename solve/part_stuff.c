@@ -50,11 +50,24 @@ int part_available_to_process(world_t *w)
     return queue_has_items(w->part_queue);
 }
 
+int sub_part_available_to_process(world_t *w, int l_part)
+{
+    return queue_has_items(w->parts[l_part].sub_part_queue);
+}
+
+
 int get_next_part(world_t *w)
 {
     int next_partition;
     queue_pop(w->part_queue, &next_partition);
     return next_partition;
+}
+
+int get_next_sub_part(world_t *w, int l_part)
+{
+    int next_sub_partition;
+    queue_pop(w->parts[l_part].sub_part_queue, &next_sub_partition);
+    return next_sub_partition;
 }
 
 void add_partition_deps_for_eval(world_t *w, int l_part_changed)
@@ -74,6 +87,22 @@ void add_partition_deps_for_eval(world_t *w, int l_part_changed)
         queue_add(w->part_queue, l_start_part);
     }
     
+}
+
+void add_sub_partition_deps_for_eval(world_t *w, int l_part, int l_sub_part_changed)
+{
+    
+    int l_start_sub_part;
+    med_hash_t *dep_part_hash;
+    int index1;
+    val_t *v;
+    
+    dep_part_hash = w->parts[ l_part ].sub_parts[l_sub_part_changed].my_local_dependents;
+    index1 = 0;
+    while ( med_hash_iterate( dep_part_hash, &index1, &l_start_sub_part, &v ) )
+    {
+        queue_add(w->parts[l_part].sub_part_queue, l_start_sub_part);
+    }
 }
 
 
