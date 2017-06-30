@@ -66,11 +66,11 @@ typedef struct {
  */
 
 //Each part is further divided into sub parts
-typedef struct sub_part_t {
-    int *sub_parts_states;        //This is an array of state indices for that sub part
-    int num_states_sub;     //Number of states in each sub_part (read in so far);
+typedef struct level1_part_t {
+    int *sub_parts;        //This is an array of state indices for that sub part
+    int num_sub_parts;     //Number of states in each sub_part (read in so far);
     med_hash_t *my_local_dependents;
-} sub_part_t;
+} level1_part_t;
 
 typedef struct part_t {
 
@@ -90,9 +90,6 @@ typedef struct part_t {
   /* we only use this variable while loading the MDP */
   int cur_local_state;
 
-  /* this is an array indicating which order variables
-     should be processed in. */
-  int *variable_ordering;
 
   /* this is the matrix stuff we use */
   vec_t *values;
@@ -104,16 +101,11 @@ typedef struct part_t {
      on this partition.  this hash maps partition numbers to hashes. */
   med_hash_t *my_local_dependents;
   med_hash_t *my_ext_parts_states;
+    med_hash_t *my_global_dependents;
 
   /* for visualization stuff */
   char marked;
     
-    //Sub-dividing each part into sub parts.
-    sub_part_t *sub_parts;
-    int num_sub_parts;
-    queue *sub_part_queue;      //Queue of sub_parts
-    
-
 
   /* the cache element for ODCD */
   odcd_cache_elem_t odcd_elem;
@@ -142,11 +134,17 @@ typedef struct world_t {
      same as num_global_{parts,states}. */
   int num_local_parts;
   int num_local_states;
+    
+    int num_level1_parts;
 
   part_t *parts;
+    
+    level1_part_t   *level1_parts;
 
   heap *part_heap;
   queue *part_queue;
+  queue *part_level1_queue;
+    bit_queue *part_level0_bit_queue;
     
   int cur_part_sorting;
   int num_value_updates;
@@ -165,9 +163,10 @@ typedef struct world_t {
 
   /* this maps GLOBAL states to GLOBAL partnums! */
   int *state_to_partnum;
-    //Maps state in each part to its sub part.
-    int *state_to_subpartnum;
-
+    //This maps level0 parts to level1 parts
+    int *part_level0_to_level1;
+    
+    
   int *gsi_to_lsi;
 
   /* parameters for the iterative linear system subsolvers */

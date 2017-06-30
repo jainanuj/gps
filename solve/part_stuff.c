@@ -50,11 +50,20 @@ int part_available_to_process(world_t *w)
     return queue_has_items(w->part_queue);
 }
 
-int sub_part_available_to_process(world_t *w, int l_part)
+int level1_part_available_to_process(world_t *w)
 {
-    return queue_has_items(w->parts[l_part].sub_part_queue);
+    return queue_has_items(w->part_level1_queue);
 }
 
+int clear_level0_queue(world_t *w)
+{
+    return empty_queue(w->part_queue);
+}
+
+int add_level0_queue(world_t *w, int l_part)
+{
+    return queue_add(w->part_queue, l_part);
+}
 
 int get_next_part(world_t *w)
 {
@@ -63,45 +72,66 @@ int get_next_part(world_t *w)
     return next_partition;
 }
 
-int get_next_sub_part(world_t *w, int l_part)
+int get_next_level1_part(world_t *w)
 {
-    int next_sub_partition;
-    queue_pop(w->parts[l_part].sub_part_queue, &next_sub_partition);
-    return next_sub_partition;
+    int next_level1_partition;
+    queue_pop(w->part_level1_queue, &next_level1_partition);
+    return next_level1_partition;
 }
 
-void add_partition_deps_for_eval(world_t *w, int l_part_changed)
+int check_dirty(world_t *w, int l_part)
 {
-    int g_part_changed, g_start_part, l_start_part;
+    return check_bit_obj_present(w->part_level0_bit_queue, l_part);
+}
+
+int clear_level0_dirty_flag(world_t *w, int l_part)
+{
+    return bit_queue_pop(w->part_level0_bit_queue, l_part);
+}
+
+int set_dirty(world_t *w, int l_part)
+{
+    return queue_add_bit(w->part_level0_bit_queue, l_part);
+}
+
+void add_level0_partition_deps_for_eval(world_t *w, int l_part_changed)
+{
+    int l_start_part;
     med_hash_t *dep_part_hash;
     int index1;
     val_t *v;
-    
-    g_part_changed = lpi_to_gpi( w, l_part_changed );
     
     dep_part_hash = w->parts[ l_part_changed ].my_local_dependents;
     index1 = 0;
-    while ( med_hash_iterate( dep_part_hash, &index1, &g_start_part, &v ) )
+    while ( med_hash_iterate( dep_part_hash, &index1, &l_start_part, &v ) )
     {
-        l_start_part = gpi_to_lpi( w, g_start_part );
         queue_add(w->part_queue, l_start_part);
     }
     
+    dep_part_hash = w->parts[ l_part_changed ].my_global_dependents;
+    index1 = 0;
+    while ( med_hash_iterate( dep_part_hash, &index1, &l_start_part, &v ) )
+    {
+        set_dirty(w, l_start_part);
+//        queue_add(w->part_queue, l_start_part);
+    }
+    
+    
 }
 
-void add_sub_partition_deps_for_eval(world_t *w, int l_part, int l_sub_part_changed)
+void add_level1_parts_deps_for_eval(world_t *w, int level1_part_changed)
 {
     
-    int l_start_sub_part;
+    int level1_start_part;
     med_hash_t *dep_part_hash;
     int index1;
     val_t *v;
     
-    dep_part_hash = w->parts[ l_part ].sub_parts[l_sub_part_changed].my_local_dependents;
+    dep_part_hash = w->level1_parts[level1_part_changed].my_local_dependents;
     index1 = 0;
-    while ( med_hash_iterate( dep_part_hash, &index1, &l_start_sub_part, &v ) )
+    while ( med_hash_iterate( dep_part_hash, &index1, &level1_start_part, &v ) )
     {
-        queue_add(w->parts[l_part].sub_part_queue, l_start_sub_part);
+        queue_add(w->part_level1_queue, level1_start_part);
     }
 }
 
@@ -111,6 +141,7 @@ void add_sub_partition_deps_for_eval(world_t *w, int l_part, int l_sub_part_chan
  */
 
 void update_partition_potentials( world_t *w, int l_part_changed ) {
+#ifdef ANUJ_UPDATE_POTS
   int l_start_state, g_start_state;
   int g_part_changed, g_start_part, l_start_part;
   float *part_heat, tmpheat;
@@ -179,6 +210,7 @@ void update_partition_potentials( world_t *w, int l_part_changed ) {
     compute_part_heat( w, l_start_part );
 
   }
+#endif
 
 }
 
@@ -187,6 +219,7 @@ void update_partition_potentials( world_t *w, int l_part_changed ) {
  */
 
 void clear_partition_heat( world_t *w, int l_part_num ) {
+#ifdef ANUJ_CLEAR_PART
   int index;
   med_hash_t *m;
   int key;
@@ -203,6 +236,7 @@ void clear_partition_heat( world_t *w, int l_part_num ) {
 //  while ( med_hash_iterate_float( m, &index, &key, &val ) ) {
 //    *val = 0;
 //  }
+#endif
 }
 
 /*
@@ -210,6 +244,7 @@ void clear_partition_heat( world_t *w, int l_part_num ) {
  */
 
 void compute_part_heat( world_t *w, int l_part_num ) {
+#ifdef ANUJ_COMPUTE_PART
   int index;
   float max_heat, *tmpf;
   med_hash_t *m;
@@ -252,7 +287,7 @@ void compute_part_heat( world_t *w, int l_part_num ) {
   heap_add( w->part_heap, l_part_num );
 #endif
 
-
+#endif
   /* XXX super debug code */
   
 }

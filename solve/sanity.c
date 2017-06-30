@@ -82,6 +82,7 @@ void check_heat( world_t *w ) {
  */
 
 void check_parts( world_t *w ) {
+#ifdef ANUJ_CHECK_PARTS
   int l_part_num, index;
   med_hash_t *m;
   float *tmpf;
@@ -97,6 +98,7 @@ void check_parts( world_t *w ) {
 //      }
 //    }
   }
+#endif
 }
 
 void check_bcoords( world_t *w ) {
@@ -241,9 +243,6 @@ void final_stats( world_t *w, float iter_time, float coord_time ) {
   wlog( 1, "   Partitions: %d\n", w->num_local_parts );
   wlog( 1, "States / part: %f\n",
 	  (float)(w->num_local_states) / (float)(w->num_local_parts));
-    wlog( 1, "Sub-parts / part: %d\n", w->parts[0].num_sub_parts);
-    if (w->state_to_subpartnum != NULL)
-        wlog( 1, "States in sub-0 of part-0: %d\n", w->parts[0].sub_parts[0].num_states_sub);
   wlog( 1, "    Iter Time: %.6f\n", iter_time );
   wlog( 1, "   Coord Time: %.6f\n", coord_time );
 

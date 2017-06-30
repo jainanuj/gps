@@ -5,7 +5,7 @@
 #ifndef _PART_QUEUE_H
 #define _PART_QUEUE_H
 
-#define BIT_ARRAY_SIZE 32
+#define BIT_ARRAY_SIZE 31
 #define DEBSEQ 0x077CB531
 #define MAX_DEB_SEQ_SIZE 0xFFFFFFFF
 #define DEB_SEQ_REM_WINDOW 27
@@ -51,7 +51,7 @@ int bit_queue_pop( bit_queue *bq, int obj );
 int check_bit_obj_present( bit_queue *bq, int obj );
 
 
-queue* queue_create( int maxitems );
+queue* queue_create( int maxitems, int max_val );
 int queue_add( queue *q, int a );
 int queue_pop( queue *q, int *result );
 int check_obj_present_in_q( queue *q, int obj);

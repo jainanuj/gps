@@ -25,11 +25,23 @@ int pick_partition( world_t *w );
 void part_check_in( world_t *w, int l_part_num );
 
 int get_next_part(world_t *w);
-int get_next_sub_part(world_t *w, int l_part);
-void add_partition_deps_for_eval(world_t *w, int l_part_changed);
+int get_next_level1_part(world_t *w);
+void add_level0_partition_deps_for_eval(world_t *w, int l_part_changed);
+void add_level1_parts_deps_for_eval(world_t *w, int level1_part_changed);
+
+
 void add_sub_partition_deps_for_eval(world_t *w, int l_part, int l_sub_part_changed);
 int part_available_to_process(world_t *w);
-int sub_part_available_to_process(world_t *w, int l_part);
+int level1_part_available_to_process(world_t *w);
+
+int clear_level0_queue(world_t *w);
+int add_level0_queue(world_t *w, int l_part);
+int check_dirty(world_t *w, int l_part);
+int clear_level0_dirty_flag(world_t *w, int l_part);
+int set_dirty(world_t *w, int l_part);
+
+
+
 
 
 #endif // defined _PART_STUFF_H

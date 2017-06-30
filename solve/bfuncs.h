@@ -83,8 +83,8 @@ void peek_at_mdp( world_t *w, char *fn );
 
 void load_state_to_part( world_t *w, char *fn );
 
-void load_states_to_sub_part(world_t *w, char *fn);
-void sub_divide_parts (world_t *w);
+void load_level1_part(world_t *w, char *fn);
+void form_level1_parts (world_t *w);
 
 
 void load_part_to_proc( world_t *w, char *fn );
@@ -105,7 +105,10 @@ void part_swap_func( int lp_a, int lp_b, void *vw );
 void part_add_func( int lp_obj, int pos, void *vw );
 void init_part_heap( world_t *w );
 void init_part_queue( world_t *w );
-void init_sub_part_queue( world_t *w, int part );
+void init_level1_part_queue( world_t *w );
+
+void init_level0_bit_queue(world_t *w);
+
 
 
 
@@ -141,13 +144,13 @@ prec_t reward_or_value_iters( world_t *w, int l_part, int l_state, int action );
 int iterate_over_parts_seq( world_t *w, int *local_part, int *global_part );
 
 void add_dep( world_t *w,
-	      int g_start_state, int l_start_state,
-	      int g_start_part, int l_start_part,
-	      int g_end_state, int g_end_part );
+             int l_start_state,
+             int l_start_part,
+             int g_end_state, int l_end_part, int level1_start_part, int level1_end_part );
 
 void add_part_ext_dep_states( world_t *w,
-                             int g_start_part, int l_start_part,
-                             int l_start_state, int l_end_state, int g_end_part );
+                             int l_start_part,
+                             int l_start_state, int l_end_state, int l_end_part );
 
 void add_cache_states(world_t *w,
                       int g_start_part, int l_start_part,
@@ -164,7 +167,7 @@ void part_matrix_init( world_t *w, int l_part_num );
 void setup_initial_policy( world_t *w );
 
 void initialize_partitions( world_t *w );
-void initialize_sub_partitions( world_t *w );
+void initialize_level1_partitions( world_t *w );
 
 int state_to_partnum( world_t *w, int g_state );
 int lsi_to_gsi( world_t *w, int l_part, int l_state );

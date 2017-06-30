@@ -73,94 +73,81 @@ void load_state_to_part( world_t *w, char *fn ) {
 }
 
 
-void load_states_to_sub_part( world_t *w, char *fn)
+void load_level1_part( world_t *w, char *fn)
 {
     FILE *fp;
-    int i, max_part, j, cnt;
-    int sub_part;
+    int i, max_part;
+    int num_subparts_per_level1, level1_part;
+    int sub_parts_in_level1_part;
     struct stat st_buf;
     int status;
     
     w->size_parts[6] = 0;
     if ( fn == NULL )
     {
-        w->state_to_subpartnum = NULL;
+        w->part_level0_to_level1 = NULL;
         return;
     }
     status = stat (fn, &st_buf);
     if ( (status != 0) || (S_ISDIR (st_buf.st_mode)) )
     {
         wlog (1, "%s is a directory.\n", fn);
-        w->state_to_subpartnum = NULL;
+        w->part_level0_to_level1 = NULL;
         return;
     }
     fp = fopen( fn, "rb" );       //.sub-part file. - Anuj
     if ( fp == NULL )
     {
-        w->state_to_subpartnum = NULL;
+        w->part_level0_to_level1 = NULL;
         return;
     }
     
     reset_tokenizer();
     
-    w->state_to_subpartnum = (int *)malloc( sizeof(int) * w->parts[0].num_states );
-    w->size_parts[6] += sizeof(int) * w->parts[0].num_states;
+    w->part_level0_to_level1 = (int *)malloc( sizeof(int) * w->num_local_parts);
     
+//    w->size_parts[6] += sizeof(int) * w->parts[0].num_states;
 
-    if ( w->state_to_subpartnum == NULL )
+    if ( w->part_level0_to_level1 == NULL )
     {
-        wlog( 1, "Error allocating state_to_partnum!\n" );
+        wlog( 1, "Error allocating part_level0_to_level1!\n" );
         exit( 0 );
     }
     
     max_part = 0;
 
-    //Assuming all parts have same number of states as part 0.
-    for ( i=0; i<w->parts[0].num_states; i++ )
+    for ( i=0; i<w->num_local_parts; i++ )
     {
-        get_token( TOKEN_INT, fp, &( w->state_to_subpartnum[i] ) );
-        if ( w->state_to_subpartnum[i] > max_part )
+        get_token( TOKEN_INT, fp, &( w->part_level0_to_level1[i] ) );
+        if ( w->part_level0_to_level1[i] > max_part )
         {
-            max_part = w->state_to_subpartnum[i];
+            max_part = w->part_level0_to_level1[i];
         }
     }
     fclose( fp );
 
-    for (i = 0; i< w->num_local_parts; i++)
+    w->num_level1_parts = max_part + 1;
+    printf("Number l1 parts = %d",     w->num_level1_parts);
+    w->level1_parts = malloc( sizeof(level1_part_t) * w->num_level1_parts);
+    num_subparts_per_level1 = w->num_local_parts/w->num_level1_parts;
+
+    for (i = 0; i< w->num_level1_parts ; i++)
     {
-        w->parts[i].num_sub_parts = max_part + 1;
-        w->parts[i].sub_parts = (sub_part_t *)malloc(sizeof(sub_part_t) * w->parts[i].num_sub_parts);
+        w->level1_parts[i].sub_parts = (int *)malloc(sizeof(int) * num_subparts_per_level1);
         
-        w->parts[i].size_sub_parts = sizeof(sub_part_t) * w->parts[i].num_sub_parts;
-        w->size_parts[6] += sizeof(sub_part_t) * w->parts[i].num_sub_parts;
+//        w->parts[i].size_sub_parts = sizeof(sub_part_t) * w->parts[i].num_sub_parts;
+//        w->size_parts[6] += sizeof(sub_part_t) * w->parts[i].num_sub_parts;
         
-        memset(w->parts[i].sub_parts, 0, sizeof(sub_part_t) * w->parts[i].num_sub_parts);
+        memset(w->level1_parts[i].sub_parts, 0, sizeof(int) * num_subparts_per_level1);
+        w->level1_parts[i].num_sub_parts = 0;       //Re-set it to 0 so we can fill them up.
     }
 
-    for ( i=0; i<w->parts[0].num_states; i++ )
-    {
-        sub_part = w->state_to_subpartnum[i];
-        w->parts[ 0 ].sub_parts[sub_part].num_states_sub++;
-    }
-    cnt = w->parts[ 0 ].sub_parts[0].num_states_sub;
-    
     for (i = 0; i < w->num_local_parts; i++)
     {
-        for (j = 0; j < w->parts[i].num_sub_parts; j++)
-        {
-            w->parts[i].sub_parts[j].num_states_sub = 0;
-            w->parts[i].sub_parts[j].sub_parts_states = (int *)malloc(sizeof(int) * cnt);
-
-            w->parts[i].size_sub_parts += sizeof(int) * cnt;
-            w->size_parts[6] += sizeof(int) * cnt;
-        }
-        for ( j=0; j<w->parts[i].num_states; j++ )
-        {
-            sub_part = w->state_to_subpartnum[j];
-            w->parts[i].sub_parts[sub_part].sub_parts_states[
-                                                             w->parts[i].sub_parts[sub_part].num_states_sub++
-                                                             ] = j;
-        }
+        level1_part = w->part_level0_to_level1[i];
+        sub_parts_in_level1_part = w->level1_parts[level1_part].num_sub_parts;
+        w->level1_parts[level1_part].sub_parts[sub_parts_in_level1_part] = i;
+        w->level1_parts[level1_part].num_sub_parts++;
     }
 }
 
@@ -316,17 +303,17 @@ void load_mdp( world_t *w, char *fn ) {
       exit( 0 );
     }
     
-    external_state_vals = (val_t ***)malloc(sizeof(val_t **) * nacts);
+    external_state_vals = (val_t ***)malloc(sizeof(val_t **) * nacts);        //Commented out for eff
 
     /* set up this state's information */
     st->tps = tt;
       st->external_dep_vals = external_deps;
       st->external_state_vals = external_state_vals;
 
-      st->size_tps = sizeof(trans_t) * nacts;           //Tracking memory for hte state.
+/*      st->size_tps = sizeof(trans_t) * nacts;           //Tracking memory for hte state.
       st->size_external_state_vals = sizeof(val_t **) * nacts;         //Tracking memory for the state.
       st->size_external_dep_vals = sizeof(prec_t) * nacts;      //Tracking memory for the state.
-
+*/          //commented out for eff
       st->num_actions = nacts;
     st->global_state_index = g_state;
 
@@ -419,14 +406,14 @@ void load_mdp( world_t *w, char *fn ) {
         else
             st->external_state_vals[a] = NULL;
         
-        st->size_external_state_vals += sizeof(val_t *) * st->tps[ a ].ext_deps;
+//        st->size_external_state_vals += sizeof(val_t *) * st->tps[ a ].ext_deps;  //Commenting for eff
         
     }       //End of all actions for a state.
-      size_st_delta = 0;
-      size_st_delta += st->size_external_state_vals + st->size_tps + st->size_external_dep_vals;
+//      size_st_delta = 0;
+//      size_st_delta += st->size_external_state_vals + st->size_tps + st->size_external_dep_vals;
       
-      w->parts[l_part].size_states += size_st_delta;
-      w->size_parts[1] += size_st_delta;
+//      w->parts[l_part].size_states += size_st_delta;
+//      w->size_parts[1] += size_st_delta;      //commenting out for eff
   }         //End of the states.
 
 }
@@ -439,9 +426,9 @@ void acquire_state_to_part( world_t *w ) {
   load_state_to_part( w, state_to_part_fn );
 }
 
-void sub_divide_parts (world_t *w)
+void form_level1_parts (world_t *w)
 {
-    load_states_to_sub_part(w, part_to_sub_part_fn);
+    load_level1_part(w, part_to_sub_part_fn);
 }
 
 
@@ -496,8 +483,8 @@ void allocate_states_in_parts( world_t *w ) {
  */
 
 int init_world( world_t *w, char *fn ) {
-  char odcd_fn[256];
-    int i;
+    double t_start, t_end;
+//  char odcd_fn[256];
 
   /* figure out how many states we're expecting */
   peek_at_mdp( w, mdp_fn );
@@ -527,10 +514,8 @@ int init_world( world_t *w, char *fn ) {
   }
   memset( w->parts, 0, sizeof(part_t) * w->num_local_parts );
     
-    for (i = 0; i< 7; i++)
-        w->size_parts[i] = 0;
     
-//    memset(w->size_parts, 0, sizeof(w->size_parts) )
+    memset(w->size_parts, 0, sizeof(w->size_parts) );
     w->size_parts[0] = sizeof(part_t) * w->num_local_parts;
 
   count_states_in_parts( w );
@@ -538,47 +523,32 @@ int init_world( world_t *w, char *fn ) {
   /* allocate the states in each partition */
   allocate_states_in_parts( w );
     
-    sub_divide_parts(w);
+    form_level1_parts(w);
 
-  w->part_queue = queue_create(w->num_local_parts);
+    w->part_queue = queue_create(w->num_local_parts/w->num_level1_parts + 1, w->num_local_parts);   //Number of parts in each level1 part.
   if ( w->part_queue == NULL ) {
         wlog( 1, "Error creating queue!\n" );
         exit( 0 );
     }
 
+    w->part_level1_queue = queue_create(w->num_level1_parts, w->num_level1_parts);
+    if ( w->part_level1_queue == NULL ) {
+        wlog( 1, "Error creating queue!\n" );
+        exit( 0 );
+    }
+    init_level1_part_queue(w);
+    
+    w->part_level0_bit_queue = create_bit_queue(w->num_local_parts);
+    if ( w->part_level1_queue == NULL ) {
+        wlog( 1, "Error creating bit queue!\n" );
+        exit( 0 );
+    }
+    init_level0_bit_queue(w);
+
     w->size_part_queue = sizeof(queue);
+//    w->size_part_queue += (w->num_local_parts/w->num_level1_parts + w->num_level1_parts + 1) * sizeof(int);
     w->size_part_queue += w->num_local_parts * sizeof(int);
     
-    //Create a queue for each partition to process the sub-parts in that part.
-    if (w->state_to_subpartnum != NULL)
-    {
-        for (i = 0; i < w->num_local_parts; i++)
-        {
-            w->parts[i].sub_part_queue = queue_create(w->parts[i].num_sub_parts);
-            if (w->parts[i].sub_part_queue == NULL )
-            {
-                wlog( 1, "Error creating sub-queue!\n" );
-                exit( 0 );
-            }
-            w->size_parts[6] += sizeof(queue);
-            w->size_parts[6] += w->parts[i].num_sub_parts * sizeof(int);
-            w->parts[i].size_sub_parts += sizeof(queue) + w->parts[i].num_sub_parts * sizeof(int);
-        }
-    }
-    
-  /* we need to initialize the foreign_state_val_hash */
-#ifdef USE_MPI
-  w->foreign_state_val_hash = med_hash_create( 4096 );
-  if ( w->foreign_state_val_hash == NULL ) {
-    wlog( 1, "Error allocating foreign_state_val_hash!\n" );
-    exit( 0 );
-  }
-#endif
-
-  /* Miscellaneous initializations */
-
-//  misc_mpi_initialization( w );
-
 /*  if ( odcd_enabled() ) {
     sprintf( odcd_fn, odcd_cache_fn_format, getpid() );
     odcd_cache_init( &(w->odcd_cache), odcd_cache_size, odcd_fn );
@@ -590,13 +560,16 @@ int init_world( world_t *w, char *fn ) {
 
   w->parts_processed = 0;
 
+    t_start = when();
   /* Everything should be allocated and ready to go.  Load the MDP! */
   load_mdp( w, mdp_fn );
+    t_end = when();
+    wlog( 1, "Loading mdp Took %.6f seconds\n\n", t_end - t_start );
 
 
-  initialize_partitions( w );
-    if (w->state_to_subpartnum != NULL)
-        initialize_sub_partitions(w);
+    initialize_partitions( w );
+    if (w->part_level0_to_level1 != NULL)
+        initialize_level1_partitions(w);
 //  w->reward_or_value_updatetime = 0.0;
 
   return 1;
@@ -726,12 +699,23 @@ void init_part_queue( world_t *w )
     }
 }
 
-void init_sub_part_queue( world_t *w, int part )
+void init_level0_bit_queue(world_t *w)
 {
-    int l_sub_part_num;
-    for ( l_sub_part_num=0; l_sub_part_num<w->parts[part].num_sub_parts; l_sub_part_num++ )
+    int l_part_num;
+    
+    for ( l_part_num=0; l_part_num<w->num_local_parts; l_part_num++ )
     {
-        queue_add( w->parts[part].sub_part_queue, l_sub_part_num );
+        queue_add_bit( w->part_level0_bit_queue, l_part_num );
+    }
+    
+}
+
+void init_level1_part_queue( world_t *w )
+{
+    int level1_part;
+    for ( level1_part=0; level1_part<w->num_level1_parts; level1_part++ )
+    {
+        queue_add( w->part_level1_queue, level1_part );
     }
 }
 
@@ -740,127 +724,67 @@ void init_sub_part_queue( world_t *w, int part )
  */
 
 void compute_cross_partition_deps( world_t *w ) {
-  int g_start_state, l_start_state, state_cnt, l_part, l_sub_part;
-    int l_start_sub_part, l_end_sub_part;
-  int l_start_part, g_start_part;
-  int g_end_state, g_end_part, l_end_state;
+  int l_start_state, state_cnt;
+  int l_start_part, level1_start_part = 0, level1_end_part = 0;
+  int g_end_state, l_end_part, l_end_state;
   int action, s, dep_cnt;
   trans_t *t;
   state_t *st;
     
+    int g_start_part;
     
-    int indexParthash =0, keyParthash =0;
-    val_t *ptr_valparthash;
-    med_hash_t *m2;
+    
+//    int indexParthash =0;
 #ifdef USE_MPI
   int r;
 #endif
 
   l_start_part = -1;
-  g_start_part = -1;
-  while ( iterate_over_parts_seq( w, &l_start_part, &g_start_part ) ) {
-
-    part_check_in( w, l_start_part );
-
-    state_cnt = w->parts[ l_start_part ].num_states;
-
-    for ( l_start_state = 0; l_start_state < state_cnt; l_start_state++ ) {
-
-      g_start_state = lsi_to_gsi( w, l_start_part, l_start_state );
-      st = &( w->parts[ l_start_part ].states[ l_start_state ] );
-
-
-#ifdef USE_MPI
-
-      /* we need to make a place for this state. */
-/*       fprintf( stderr, "Adding %d to svh (%d,%d)\n", */
-/* 	       g_start_state, l_start_part, l_start_state ); */
-#ifdef PREC_IS_FLOAT
-      r = med_hash_add_float( w->foreign_state_val_hash, g_start_state,
-			      DEFAULT_VALUE );
-#else
-      r = med_hash_add_double( w->foreign_state_val_hash, g_start_state,
-			       DEFAULT_VALUE );
-#endif
-      assert( r == MH_ADD_OK || r == MH_ADD_REPLACED );
-
-#endif
-
-      for (action=0; action<st->num_actions; action++) {
-
-	t = &( st->tps[ action ] );
-
-	dep_cnt = t->int_deps + t->ext_deps;
-	for ( s=0; s<dep_cnt; s++ ) {
-
-	  /* right now, t->entries[ i ].col is a global state index. */
-	  g_end_state = t->entries[ s ].col;
-
-	  /* ok.  l_start_state depends on g_end_state.
-	     where is g_end_state, and what do we need to do about it?
-	     first, figure out what partition it's in. */
-	  g_end_part = state_to_partnum( w, g_end_state );
-
-	  /* we need to add end_state to our state value cache.  this
-	     maps gsi's to prec_ts (representing the value of the
-	     state) */
-#ifdef USE_MPI
-
-          if (!med_hash_check( w->foreign_state_val_hash, g_end_state )) {
-#ifdef PREC_IS_FLOAT
-              r = med_hash_add_float(
-                      w->foreign_state_val_hash, g_end_state, DEFAULT_VALUE
-                      );
-#else
-              r = med_hash_add_double(
-                      w->foreign_state_val_hash, g_end_state, DEFAULT_VALUE
-                      );
-#endif
-
-              assert( r == MH_ADD_OK || r == MH_ADD_REPLACED );
-/* 	      fprintf( stderr, "  (adding %d to svh)\n", g_end_state ); */
-          }
-
-#endif
-
-	  if ( g_start_part == g_end_part )
+  l_start_part = -1;
+  while ( iterate_over_parts_seq( w, &l_start_part, &g_start_part ) )
+  {
+      //part_check_in( w, l_start_part );
+      state_cnt = w->parts[ l_start_part ].num_states;        //Base states
+      for ( l_start_state = 0; l_start_state < state_cnt; l_start_state++ )
       {
-          if (w->state_to_subpartnum != NULL)
+          st = &( w->parts[ l_start_part ].states[ l_start_state ] );
+          for (action=0; action<st->num_actions; action++)
           {
-              l_end_state = gsi_to_lsi(w, g_end_state);
-              l_start_sub_part = w->state_to_subpartnum[l_start_state];
-              l_end_sub_part = w->state_to_subpartnum[l_end_state];
-              if (l_start_sub_part != l_end_sub_part)
+              t = &( st->tps[ action ] );
+              dep_cnt = t->int_deps + t->ext_deps;
+              for ( s=0; s<dep_cnt; s++ )
               {
-                  med_hash_set_add( w->parts[ g_start_part ].sub_parts[l_end_sub_part].my_local_dependents,
-                                   l_start_sub_part, l_start_state ); //l_start_state might need to be replaced by l_start_sub_state. TODO - Anuj
-              }
-          }
-          continue;
-      }
-
-	  /* ok.  g_end_state isn't in our partition.
-	     that means that g_end_part has an inverse link to us. */
-
-	  add_dep( w,
-		   g_start_state, l_start_state,
-		   g_start_part, l_start_part,
-		   g_end_state, g_end_part );
-        
-        
-        //Also add the state to ext deps list of the partition.
-        //Put this as a list in buckets of external partitions.
-        
-        //So every partition will mantain a hash for external partitions.
-        //In each of the external partitions will be hash of states belonging to that partition this partition depends on.
-        l_end_state = gsi_to_lsi(w, g_end_state);
-        add_part_ext_dep_states(w, g_start_part, l_start_part, l_start_state, l_end_state, g_end_part);
+                  /* right now, t->entries[ i ].col is a global state index. */
+                  g_end_state = t->entries[ s ].col;
+                  /* ok.  l_start_state depends on g_end_state.
+                   where is g_end_state, and what do we need to do about it?
+                   first, figure out what partition it's in. */
+                  l_end_part = state_to_partnum( w, g_end_state );
+                  if ( l_start_part == l_end_part )
+                  {
+                      continue;
+                  }
+                  /* ok.  g_end_state isn't in our partition.
+                   that means that g_end_part has an inverse link to us. */
+                  level1_start_part = w->part_level0_to_level1[l_start_part];
+                  level1_end_part = w->part_level0_to_level1[l_end_part];
+                  add_dep( w, l_start_state,
+                          l_start_part,
+                      g_end_state, l_end_part, level1_start_part, level1_end_part );
+                  //Also add the state to ext deps list of the partition.
+                  //Put this as a list in buckets of external partitions.
+                  //So every partition will mantain a hash for external partitions.
+                  //In each of the external partitions will be hash of states belonging to that partition this partition depends
+                  l_end_state = gsi_to_lsi(w, g_end_state);
+                  add_part_ext_dep_states(w, l_start_part, l_start_state, l_end_state, l_end_part);
 	
-    }       //End of each dependent for an action.
-      }     //End of each action in a state
-    }       //End of looping over each state in a partitoin
+              }       //End of each dependent for an action.
+          }     //End of each action in a state
+      }       //End of looping over each state in a partitoin
+    
       
-      
+      //All beyond this is size computation...
+      /*
       w->parts[l_start_part].size_my_ext_parts = sizeof(med_hash_t);
       w->parts[l_start_part].size_my_ext_parts +=
                 w->parts[l_start_part].my_ext_parts_states->nalloc * sizeof(datum_t);
@@ -873,8 +797,9 @@ void compute_cross_partition_deps( world_t *w ) {
           w->parts[l_start_part].size_my_ext_parts += m2->nalloc * sizeof(datum_t);
       }
       w->size_parts[3] += w->parts[l_start_part].size_my_ext_parts;
+       */
   }         //End of looping over each partition
-    
+/*
     for (l_part = 0; l_part < w->num_local_parts; l_part++)
     {
         w->parts[l_part].size_my_local_deps = sizeof(med_hash_t);
@@ -893,7 +818,7 @@ void compute_cross_partition_deps( world_t *w ) {
                                                 * sizeof(datum_t);
             }
         }
-    }
+    }*/
     
 }           //End of Function
 
@@ -963,6 +888,7 @@ subtract successors
 */
 
 void reorder_states_within_partition( world_t *w, int l_part ) {
+#ifdef REORDER
   part_t *pp;
   state_t *sp;
   int i, j, total, done_cnt, scnt, a;
@@ -1110,15 +1036,16 @@ void reorder_states_within_partition( world_t *w, int l_part ) {
 
   free( zero_deg_list );
   free( deg_cnt );
-
+#endif
 }
 
 void reorder_states_within_partitions( world_t *w ) {
-  int l_part;
+/*  int l_part;
 
   for ( l_part=0; l_part < w->num_local_parts; l_part++ ) {
     reorder_states_within_partition( w, l_part );
-  }
+  }*/
+    return;
 }
 
 /*
@@ -1155,7 +1082,8 @@ void compute_initial_partition_priorities( world_t *w ) {
  * ----------------------------------------------------------------------------
  */
 
-prec_t value_sum( world_t *w ) {
+prec_t value_sum( world_t *w )
+{
   int part, state, scnt;
   prec_t total;
   part_t *pa;
@@ -1177,17 +1105,14 @@ prec_t value_sum( world_t *w ) {
 prec_t value_iterate_partition( world_t *w, int l_part )
 {
     part_t *pp;
-    int l_state, state_cnt, l_sub_part;
-    float max_heat, delta, part_internal_heat, tmp;
+    int l_state, state_cnt;
+    float max_heat, delta, part_internal_heat;
     med_hash_t *dep_part_hash;
     int numPartitionIters = 0;
     
-    int g_end_ext_partition, g_end_ext_state, l_end_ext_state, index1 = 0, index2 = 0;
+    int g_end_ext_partition, l_end_ext_state, index1 = 0, index2 = 0;
     val_t *val_state_action;
 /*   FILE *fp; */
-
-  /* make sure that the data is in the odcd cache! */
-    part_check_in( w, l_part );
 
     max_heat = 0;
     pp = &( w->parts[ l_part ] );
@@ -1209,23 +1134,7 @@ prec_t value_iterate_partition( world_t *w, int l_part )
         max_heat = MAX( fabs( delta ), max_heat );
     }
     
-    if ((w->state_to_subpartnum != NULL) && (max_heat > heat_epsilon) )
-    {
-        empty_queue(w->parts[l_part].sub_part_queue);
-        init_sub_part_queue(w, l_part);
-    
-        while (sub_part_available_to_process(w, l_part))
-        {
-            l_sub_part = get_next_sub_part(w, l_part);
-            tmp = value_iterate_sub_partition( w, l_part, l_sub_part);
-            if (tmp > heat_epsilon)
-            {
-                add_sub_partition_deps_for_eval(w, l_part, l_sub_part);
-                max_heat = tmp;
-            }
-        }
-    }
-    else if (max_heat > heat_epsilon)
+    if (max_heat > heat_epsilon)
     {
         //This is equivalent to while(true) as we don't change max_heat in the while loop.
         //If max_heat == 0 we don't need to enter this loop as partition is already cold.
@@ -1254,69 +1163,69 @@ prec_t value_iterate_partition( world_t *w, int l_part )
     return max_heat;
 }
 
-prec_t value_iterate_sub_partition( world_t *w, int l_part, int l_sub_part)
+prec_t value_iterate_level1_partition( world_t *w, int level1_part )
 {
-    int state_cnt, l_sub_state;
-    float delta, max_change, sub_part_internal_heat;
-    state_cnt = w->parts[l_part].sub_parts[l_sub_part].num_states_sub;
+    int i, l_part, next_level0_part;
+    prec_t  tmp, maxheat;
     
-    max_change = 0;
-    while(1)
+    clear_level0_queue(w);
+    for (i=0; i< w->level1_parts[level1_part].num_sub_parts; i++ )
     {
-        //part_internal_heat initialized to 0 at beginning of each iteration.
-        //It attains value of max heat in that iteration and keeps on reducing with every iteration.
-        //It signifies that we are making progress within the partition.
-        sub_part_internal_heat = 0;
-        for ( l_sub_state = 0; l_sub_state < state_cnt; l_sub_state++ )
+        l_part = w->level1_parts[level1_part].sub_parts[i];
+        if (check_dirty(w, l_part) )
         {
-            delta = value_update_iters( w, l_part, w->parts[l_part].sub_parts[l_sub_part].sub_parts_states[l_sub_state] );
-            sub_part_internal_heat = MAX( fabs( delta ), sub_part_internal_heat );
-            if (sub_part_internal_heat > max_change)
-                max_change = sub_part_internal_heat;
-        }
-//        numPartitionIters++;
-        if (sub_part_internal_heat < heat_epsilon) //excluding (numPartitionIters > MAX_ITERS_PP) ||
-        {
-            //if (numPartitionIters > 1)
-            //if (numPartitionIters >= 20)
-            //  if ( verbose ) { wlog( 1, "Partition %d was processed %d number of times. Part Internal Heat is: %.6f. Max heat to begin with is: %.6f \n", l_part, numPartitionIters, part_internal_heat, max_heat ); }
-            
-            
-            break;
+            add_level0_queue(w, l_part);
+            clear_level0_dirty_flag(w, l_part);
         }
     }
-    return max_change;
+    while (part_available_to_process(w) )
+    {
+        next_level0_part = get_next_part(w);
+        tmp = value_iterate_partition(w, next_level0_part);
+        if (tmp > heat_epsilon)
+        {
+            //Add local deps to queue. Mark global as dirty.
+            add_level0_partition_deps_for_eval(w, next_level0_part);
+            if (w->part_queue->numitems > w->level1_parts[level1_part].num_sub_parts )
+                wlog(1, "storing too many items in level0 q. NumItems = %d\n",w->part_queue->numitems);
+            maxheat = tmp;
+        }
+    }
+    return maxheat;
 }
 
 
 /* washes over all of the partitions */
-prec_t value_iterate( world_t *w ) {
-  int l_part;
+prec_t value_iterate( world_t *w )
+{
+  int   level1_part, next_level0_part;
   prec_t maxheat, tmp;
 
   maxheat = 0;
     
-    while (part_available_to_process(w))
+/*    while (part_available_to_process(w))
     {
-        l_part = get_next_part(w);
-        tmp = value_iterate_partition( w, l_part );
+        next_level0_part = get_next_part(w);
+        tmp = value_iterate_partition(w, next_level0_part);
         if (tmp > heat_epsilon)
         {
-            add_partition_deps_for_eval(w, l_part);
+            //Add local deps to queue. Mark global as dirty.
+            add_level0_partition_deps_for_eval(w, next_level0_part);
+            maxheat = tmp;
+        }
+    }*/
+    while (level1_part_available_to_process(w))
+    {
+        level1_part = get_next_level1_part(w);
+        tmp = value_iterate_level1_partition( w, level1_part );
+        if (tmp > heat_epsilon)
+        {
+            add_level1_parts_deps_for_eval(w, level1_part);
             maxheat = tmp;
         }
     }
+    return maxheat;
 
-/*  for ( l_part = 0; l_part < w->num_local_parts; l_part++ ) {
-
-    tmp = value_iterate_partition( w, l_part );
-
-    if ( tmp > maxheat ) {
-      maxheat = tmp;
-    }
-  }
-*/
-  return maxheat;
 }
 
 /*
@@ -1647,69 +1556,56 @@ int iterate_over_parts_seq( world_t *w, int *local_part, int *global_part ) {
 */
 
 void add_dep( world_t *w,
-	      int g_start_state, int l_start_state,
-	      int g_start_part, int l_start_part,
-	      int g_end_state, int g_end_part ) {
+	      int l_start_state,
+	      int l_start_part,
+	      int g_end_state, int l_end_part, int level1_start_part, int level1_end_part ) {
 
-  int l_end_part, r;
+    val_t val0;
+    val0.i = 0;
+    int rval = 0;
 
-  /* no matter what, g_start_part depends on g_end_part, so
-     it g_start_part needs a heat link to g_end_part */
-#ifdef PREC_IS_FLOAT
-//  r = med_hash_add_float( w->parts[ l_start_part ].heat_links, g_end_part, 0 );
-#else
-//  r = med_hash_add_double( w->parts[ l_start_part ].heat_links, g_end_part, 0 );
-#endif
-//  assert( r == MH_ADD_OK || r == MH_ADD_REPLACED );
+    /* g_start_state (which resides in l_start_part) depends on
+       g_end_state (which resides in l_end_part).
+       so, l_end_part needs to have a dependent which is l_start_part. */
 
-#ifdef USE_MPI
-  if ( is_partition_local( w, g_end_part ) ) {
-#endif
-    /* it's a local partition */
-
-    l_end_part = gpi_to_lpi( w, g_end_part );
-
-    /* g_start_state (which resides in g_start_part) depends on
-       g_end_state (which resides in g_end_part).
-       so, g_end_part needs to have a dependent which is l_start_part. */
-
-  med_hash_set_add( w->parts[ l_end_part ].my_local_dependents,
-		      g_start_part, l_start_state );
-
-#ifdef USE_MPI
-  } else {
-    /* it's a foreign partition. */
-
-    /* globally, we need to say that g_start_part depends on
-       g_end_part this is so that we can do a reverse lookup when we
-       get a message about g_end_part having changed.  So, we map
-       g_end_part to g_start_part. */
-    med_hash_set_add( w->endpart_to_startpart,
-		      g_end_part, g_start_part );
-
-    /* Within l_start_part, we need to map g_end_part -> g_start_state */
-    med_hash_set_add( w->parts[ l_start_part ].endpart_to_startstate,
-		      g_end_part, l_start_state );
-
-    /* We need to inform the foreign processor that we are interested
-       in the value of end_state, and that we should be notified when
-       it changes.  So, we map proc -> g_end_state (we can throw this
-       hash away once we've coordinated dependencies). */
-    med_hash_set_add( w->fproc_data,
-		      w->part_to_proc[ g_end_part ].owning_processor,
-		      g_end_state );  
-  }
-
-#endif /* defined USE_MPI */
+    if (level1_start_part == level1_end_part)       //Within same level1 partition so just add to deps of local part.
+    {
+//        med_hash_set_add( w->parts[ l_end_part ].my_local_dependents,
+//                         g_start_part, l_start_state );
+        rval = med_hash_add( w->parts[ l_end_part ].my_local_dependents,
+                            l_start_part, val0 );
+        if (rval > MH_ADD_REPLACED)
+            wlog(1, "Problems adding to local deps of base parts. Rval=%d\n", rval);
+    }
+    
+    else
+    {
+        //Add the base partition to global dependents as it is in a different higher level partition
+//        med_hash_set_add( w->parts[ l_end_part ].my_global_dependents,
+//                         g_start_part, l_start_state );
+        rval = med_hash_add( w->parts[ l_end_part ].my_global_dependents,
+                     l_start_part, val0);
+        if (rval > MH_ADD_REPLACED)
+            wlog(1, "Problems adding to global deps of base parts. Rval=%d\n", rval);
+            
+        
+        //Add dependency of higher level partitions, so
+        //the higher level partition can be scheduled if the dpendent changed.
+//        med_hash_set_add(w->level1_parts[level1_end_part].my_local_dependents, level1_start_part, g_start_part);
+        rval = med_hash_add(w->level1_parts[level1_end_part].my_local_dependents,
+                     level1_start_part, val0);
+        if (rval > MH_ADD_REPLACED)
+            wlog(1, "Problems adding to local deps of l1 parts. Rval=%d\n", rval);
+    }
 }
 
 void add_part_ext_dep_states( world_t *w,
-                             int g_start_part, int l_start_part,
-                             int l_start_state, int l_end_state, int g_end_part)
+                             int l_start_part,
+                             int l_start_state, int l_end_state, int l_end_part)
 {
 
     med_hash_set_add( w->parts[ l_start_part ].my_ext_parts_states,
-                     g_end_part, l_end_state );
+                     l_end_part, l_end_state );
     
 }
 
@@ -1858,54 +1754,45 @@ void setup_initial_policy( world_t *w ) {
   }
 }
 
-void initialize_partitions( world_t *w ) {
+void initialize_partitions( world_t *w )
+{
   int l_part;
 
-  for ( l_part=0; l_part<w->num_local_parts; l_part++ ) {
-
+  for ( l_part=0; l_part<w->num_local_parts; l_part++ )
+  {
     /* create the dependency hashes for this partition */
     w->parts[ l_part ].my_local_dependents = med_hash_create( 4 );
     w->parts[ l_part ].my_ext_parts_states = med_hash_create( 4 );
+      w->parts[ l_part ].my_global_dependents = med_hash_create( 4 );
 
-
-    if ( //w->parts[ l_part ].heat_links == NULL ||
-	 w->parts[ l_part ].my_local_dependents == NULL ||
-     w->parts[ l_part ].my_ext_parts_states  == NULL)
-    {
-      wlog( 1, "Error creating dependency hashes for part %d!\n", l_part );
-      exit( 0 );
-    }
+      if (w->parts[ l_part ].my_local_dependents == NULL ||
+          w->parts[ l_part ].my_ext_parts_states  == NULL ||
+          w->parts[ l_part ].my_global_dependents == NULL)
+      {
+          wlog( 1, "Error creating dependency hashes for part %d!\n", l_part );
+          exit( 0 );
+      }
 
     /* create all of the matrix stuff necessary for our library */
     part_matrix_init( w, l_part );
-
   }
 }
 
-void initialize_sub_partitions( world_t *w )
+void initialize_level1_partitions( world_t *w )
 {
-    int l_part, sub_part;
+    int level1_part;
     
-    if (w->state_to_subpartnum == NULL)
+    if (w->part_level0_to_level1 == NULL)
         return;
 
-    for ( l_part=0; l_part<w->num_local_parts; l_part++ )
+    for (level1_part = 0; level1_part < w->num_level1_parts; level1_part++)
     {
-        for (sub_part = 0; sub_part < w->parts[l_part].num_sub_parts; sub_part++)
+        /* create the dependency hashes for this partition */
+        w->level1_parts[level1_part].my_local_dependents = med_hash_create( 4 );
+        if (w->level1_parts[level1_part].my_local_dependents == NULL)
         {
-        
-            /* create the dependency hashes for this partition */
-            w->parts[ l_part ].sub_parts[sub_part].my_local_dependents = med_hash_create( 4 );
-//            w->parts[ l_part ].sub_parts[sub_part].my_ext_parts_states = med_hash_create( 4 );
-        
-            if (w->parts[ l_part ].sub_parts[sub_part].my_local_dependents == NULL
-                //|| w->parts[ l_part ].my_ext_parts_states  == NULL
-                )
-            {
-                wlog( 1, "Error creating dependency hashes for part %d and sub-part %d!\n", l_part, sub_part );
-                exit( 0 );
-            }
-//            part_matrix_init( w, l_part );
+            wlog( 1, "Error creating dependency hashes for level1 part %d!\n", level1_part );
+            exit( 0 );
         }
     }
 }

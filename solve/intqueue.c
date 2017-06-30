@@ -32,7 +32,8 @@ int check_obj_present_in_q(queue* q, int obj)
 // ----------------------------------------------------------------------------
 //
 
-queue *queue_create( int maxitems ) {
+queue *queue_create( int maxitems, int max_val )
+{
   queue *q;
 
 #ifdef BITQ
@@ -56,7 +57,7 @@ queue *queue_create( int maxitems ) {
     q->end_item_ptr = 0;
     q->start_item_ptr = 0;
 #ifdef BITQ
-    bq = create_bit_queue(maxitems);
+    bq = create_bit_queue(max_val);
     q->bitqueue = bq;
 #endif
     q->add_time = 0.0;
@@ -86,7 +87,6 @@ int queue_add( queue *q, int obj )
 {
     double t_start, t_end;
 //    t_start = whenq();
-    int pos = 0;
 
 #ifndef BITQ
     pos = check_obj_present_in_q(q, obj);
@@ -194,7 +194,7 @@ int check_bit_obj_present( bit_queue *bq, int obj )
     int index_bit_array = obj/BIT_ARRAY_SIZE;       //index of the bit array to use.
     int set_bit = obj - (index_bit_array * BIT_ARRAY_SIZE);     //The index of bit to be set in the chosen bit array
     unsigned long number_bitset = 0x1 << set_bit;        //The number with the required bit set.
-    if (set_bit > BIT_ARRAY_SIZE)
+    if ( (set_bit > BIT_ARRAY_SIZE) || (index_bit_array >= bq->max_bit_arrays))
     {
         fprintf(stderr, "Bit manip problem!\n");
         exit(0);
@@ -209,7 +209,7 @@ int bit_queue_pop( bit_queue *bq, int obj )
     int set_bit = obj - (index_bit_array * BIT_ARRAY_SIZE);     //The index of bit to be set in the chosen bit array
     unsigned long number_bit_unset = 0x1 << set_bit;        //The number with the required bit set.
     number_bit_unset = (~number_bit_unset) & MAX_DEB_SEQ_SIZE;
-    if (set_bit > BIT_ARRAY_SIZE)
+    if ( (set_bit > BIT_ARRAY_SIZE) || (index_bit_array >= bq->max_bit_arrays) )
     {
         fprintf(stderr, "Bit manip problem!\n");
         exit(0);
@@ -227,7 +227,7 @@ int queue_add_bit( bit_queue *bq, int obj )
     int index_bit_array = obj/BIT_ARRAY_SIZE;       //index of the bit array to use.
     int set_bit = obj - (index_bit_array * BIT_ARRAY_SIZE);     //The index of bit to be set in the chosen bit array
     unsigned long number_bitset = 0x1 << set_bit;        //The number with the required bit set.
-    if (set_bit > BIT_ARRAY_SIZE)
+    if ( (set_bit > BIT_ARRAY_SIZE) || (index_bit_array >= bq->max_bit_arrays) )
     {
         fprintf(stderr, "Bit manip problem!\n");
         exit(0);

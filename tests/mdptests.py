@@ -1,33 +1,47 @@
 import os
 
-current_dir = "./"
-test_run_root = "test_runs/"
-sizedirs = "/"
-mdpdirs = "mdps/"
-partitiondirs = "partitions/"
-opdir = "./results/outputs/"
-statdir ="./results/stats/"
-statfile = "statsummary/summarytable.txt"
+statfile = "./res/stats/summarytable.txt"
+statfileptr = open(statfile, "a")
 
-pre_pend_path = "../tests/"
-
-startdir = current_dir + test_run_root
-statfileptr = open(statdir + statfile, "a")
-statfileptr.write("Mdp_size, part_dims, part_avg_bytes, #updates, time_taken, Iter_Time, Queue_Time \n")
+statfileptr.write("Mdp_size, level_0_dims, level1_part_dims, part_avg_bytes, #updates, time_taken, Iter_Time, Queue_Time \n")
 statfileptr.close()
 
-for size in os.listdir(startdir):
-    for mdp in os.listdir(startdir + size + '/' + mdpdirs):
-        for part in os.listdir(startdir + size + '/' + partitiondirs):
-            mdpPath = current_dir + test_run_root + size + '/' + mdpdirs + mdp
-            partPath = current_dir + test_run_root + size + '/' + partitiondirs + part
-#            print "MDP = ", mdpPath, " Part = ", partPath
-            opfile = "results" + "_" + mdp + "_" + size + "_" + part
-            cmd_to_exec = "../solve/gps --epsilon=0.0001  --odcd_cache_fn_format=/tmp/odcd_cache-%d  --odcd_cache_size=-1 \
---mdp_fn=" + mdpPath + "  --stp_fn=" + partPath + "  --run_type=vi  --heat_metric=abs  --solver=r  \
---use_voting=0   --save_fn=" + opdir + opfile + " --stat_fn=" + statdir + statfile + "  --verbose=1 >" + statdir + opfile
-            statfileptr = open(statdir + statfile, "a")
-            statfileptr.write(mdp + '_' +  size + ', ' + part + ', ')
-            statfileptr.close()
-            print(cmd_to_exec)
-            os.system(cmd_to_exec)
+mdps = ['grid', 'mcar']
+states = [1000, 2000]
+#base_parts = [500, 200]
+#level1_parts = [ [5, 10],
+#                [5, 10]]
+base_parts = [500, 200, 100, 50, 40, 25, 20, 10]
+level1_parts = [ [5, 10, 20, 25, 50, 100],
+                 [5, 10, 20, 25, 50],
+                 [5, 10, 20, 25],
+                 [5, 10, 25],
+                 [4, 5, 10],
+                 [5],
+                 [4, 5, 10],
+                 [2, 5]]                      #10
+
+i = 0
+
+for mdp in mdps:
+    for state in states:
+        i = 0
+        mdp_fn = "./mdps/"+mdp+'_'+str(state)+'x'+str(state)
+        for base_part in base_parts:
+            stp_fn = "./parts/"+str(state)+'-'+str(base_part)+'x'+str(base_part)
+            for level1_size in level1_parts[i]:
+                level1_stp = "./parts/"+str(base_part)+'-'+str(level1_size)+'x'+str(level1_size)
+                result="./res/results_"+mdp+'_'+str(state)+'-'+str(base_part)+'-'+str(level1_size)
+                cmd = "../solve/gps --epsilon=0.0001  --odcd_cache_fn_format=/tmp/odcd_cache-%d  --odcd_cache_size=-1  --mdp_fn=" \
+                + mdp_fn + "  --stp_fn="+stp_fn\
+                      +"  --sub_parts_st="+level1_stp+ "  --run_type=vi  --heat_metric=abs  --solver=r  --use_voting=0      --save_fn=" \
+                +result+" --stat_fn="+statfile+"  --verbose=1"
+                statfileptr = open(statfile, "a")
+                statfileptr.write(mdp_fn + ', ' + str(base_part) + ', ' + str(level1_size) + ', ')
+                statfileptr.close()
+                print(cmd + '\n')
+                os.system(cmd)
+            i = i+1
+
+
+
